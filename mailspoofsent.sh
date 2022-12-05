@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# Check if postfix is installed
+if ! dpkg -s postfix &> /dev/null; then
+  # Prompt the user to install postfix
+  read -p "Postfix is not installed. Do you want to install it now? (y/n) " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    # Install postfix
+    sudo apt-get update
+    sudo apt-get install postfix
+  fi
+fi
+
 # show usage if no arguments are provided
 if [ $# -eq 0 ]; then
   echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body"
