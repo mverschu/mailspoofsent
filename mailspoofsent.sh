@@ -7,8 +7,8 @@ if ! dpkg -s postfix &> /dev/null; then
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Install postfix
-    sudo apt-get update
-    sudo apt-get install postfix
+    sudo apt update
+    sudo apt install postfix
     # Start postfix
     sudo systemctl start postfix
   fi
