@@ -74,9 +74,9 @@ done
 
 # send the email using the mail command
 if [ -z "$bcc_address" ]; then
-  mail -s "$subject" -r "$mail_from" -a "Envelope-From: $mail_envelope" "$mail_to" <<< "$body"
+  mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" "$mail_to" <<< "$body"
 else
-  mail -s "$subject" -r "$mail_from" -a "Envelope-From: $mail_envelope" -b "$bcc_address" "$mail_to" <<< "$body"
+  mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" -b "$bcc_address" "$mail_to" <<< "$body"
 fi
 
 # check if the mail command was successful
