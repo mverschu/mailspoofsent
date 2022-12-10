@@ -84,11 +84,20 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# add List-Unsubscribe header
+mail_headers="$mail_headers -a List-Unsubscribe:<mailto:unsubscribe@example.com?subject=unsubscribe>"
+
+# get domain from mail_from argument
+domain=$(echo $mail_from | awk -F@ '{print $2}')
+
+# replace example.com domain with domain from mail_from argument
+mail_headers=$(echo $mail_headers | sed "s/example.com/$domain/")
+
 # send the email using the mail command
 if [ -z "$bcc_address" ]; then
-  mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" "$mail_to" <<< "$body"
+  mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 else
-  mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" -b "$bcc_address" "$mail_to" <<< "$body"
+  mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" -b "$bcc_address" "$mail_headers" "$mail_to" <<< "$body"
 fi
 
 # check if the mail command was successful
