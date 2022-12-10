@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Check if the script is being run with sudo rights
-# Check if the script is being run with sudo rights
 if [ "$(id -u)" != "0" ]; then
   # Show disclaimer and exit
   echo "DISCLAIMER: This script requires sudo rights to run."
