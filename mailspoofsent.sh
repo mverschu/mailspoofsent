@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Check sudo rights and show disclaimer
+if [ "$(id -u)" != "0" ]; then
+  # Show disclaimer and exit
+  echo "DISCLAIMER: This script requires sudo rights to run."
+  exit 1
+fi
+
 if ! dpkg -s postfix &> /dev/null; then
   # Check if postfix and mailutils are installed
   if ! dpkg -s postfix &> /dev/null || ! dpkg -s mailutils &> /dev/null; then
@@ -86,7 +93,9 @@ done
 
 # Fake domainname in Postfix configuration
 MAIL_FROM_DOMAIN=$(echo $mail_from | awk -F@ '{print $2}')
-sed -i "s/^myhostname =.*/myhostname = $MAIL_FROM_DOMAIN/" /etc/postfix/main.cf
+sudo sed -i "s/^myhostname =.*/myhostname = $MAIL_FROM_DOMAIN/" /etc/postfix/main.cf
+sed -i "s/^mydestination =.*/mydestination = $myhostname, $MAIL_FROM_DOMAIN, localhost.localdomain, , localhost/" /etc/postfix/main.cf
+sudo systemctl restart postfix
 
 # add List-Unsubscribe header
 mail_headers="$mail_headers -aList-Unsubscribe:<mailto:unsubscribe@example.com?subject=unsubscribe>"
