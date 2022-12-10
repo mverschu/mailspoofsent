@@ -6,9 +6,9 @@ if ! dpkg -s postfix &> /dev/null; then
   read -p "Postfix is not installed. Do you want to install it now? (y/n) " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
-    # Install postfix
+    # Install postfix & mailutils
     sudo apt update
-    sudo apt install postfix
+    sudo apt install postfix mailutils
     # Start postfix
     sudo systemctl start postfix
   fi
