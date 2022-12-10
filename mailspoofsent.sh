@@ -84,6 +84,10 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Fake domainname in Postfix configuration
+MAIL_FROM_DOMAIN=$(echo $mail_from | awk -F@ '{print $2}')
+sed -i "s/^myhostname =.*/myhostname = $MAIL_FROM_DOMAIN/" /etc/postfix/main.cf
+
 # add List-Unsubscribe header
 mail_headers="$mail_headers -aList-Unsubscribe:<mailto:unsubscribe@example.com?subject=unsubscribe>"
 
