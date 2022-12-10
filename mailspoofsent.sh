@@ -2,26 +2,30 @@
 
 # Check if postfix is installed
 if ! dpkg -s postfix &> /dev/null; then
-  # Prompt the user to install postfix
-  read -p "Postfix is not installed. Do you want to install it now? (y/n) " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    # Install postfix & mailutils
-    if [ -x "$(command -v yum)" ]; then
-      # Use yum to install postfix & mailutils
-      sudo yum install postfix mailutils
-    elif [ -x "$(command -v dnf)" ]; then
-      # Use dnf to install postfix & mailutils
-      sudo dnf install postfix mailutils
-    else
-      # Use apt to install postfix & mailutils
-      sudo apt update
-      sudo apt install postfix mailutils
+  # Check if postfix and mailutils are installed
+  if ! dpkg -s postfix &> /dev/null || ! dpkg -s mailutils &> /dev/null; then
+    # Prompt the user to install postfix and mailutils
+    read -p "Postfix and/or mailutils are not installed. Do you want to install them now? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      # Install postfix & mailutils
+      if [ -x "$(command -v yum)" ]; then
+        # Use yum to install postfix & mailutils
+        sudo yum install postfix mailutils
+      elif [ -x "$(command -v dnf)" ]; then
+        # Use dnf to install postfix & mailutils
+        sudo dnf install postfix mailutils
+      else
+        # Use apt to install postfix & mailutils
+        sudo apt update
+        sudo apt install postfix mailutils
+      fi
     fi
-    # Start postfix
-    sudo systemctl start postfix
   fi
+  # Start postfix
+  sudo systemctl start postfix
 fi
+
 
 # show usage if no arguments are provided
 if [ $# -eq 0 ]; then
