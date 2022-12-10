@@ -85,7 +85,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # add List-Unsubscribe header
-mail_headers="$mail_headers -a List-Unsubscribe:<mailto:unsubscribe@example.com?subject=unsubscribe>"
+mail_headers="$mail_headers -aList-Unsubscribe:<mailto:unsubscribe@example.com?subject=unsubscribe>"
 
 # get domain from mail_from argument
 domain=$(echo $mail_from | awk -F@ '{print $2}')
