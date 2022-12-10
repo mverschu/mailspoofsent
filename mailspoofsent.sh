@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Check if the script is being run with sudo rights
+# Check if the script is being run with sudo rights
 if [ "$(id -u)" != "0" ]; then
   # Show disclaimer and exit
   echo "DISCLAIMER: This script requires sudo rights to run."
@@ -93,20 +94,24 @@ done
 
 # Fake domainname in Postfix configuration
 MAIL_FROM_DOMAIN=$(echo $mail_from | awk -F@ '{print $2}')
+echo "Updating Postfix configuration..."
 sudo sed -i "s/^myhostname =.*/myhostname = $MAIL_FROM_DOMAIN/" /etc/postfix/main.cf
 sed -i "s/^mydestination =.*/mydestination = $myhostname, $MAIL_FROM_DOMAIN, localhost.localdomain, , localhost/" /etc/postfix/main.cf
 sudo systemctl restart postfix
 
 # add List-Unsubscribe header
+echo "Adding List-Unsubscribe header..."
 mail_headers="$mail_headers -aList-Unsubscribe:<mailto:unsubscribe@example.com?subject=unsubscribe>"
 
 # get domain from mail_from argument
 domain=$(echo $mail_from | awk -F@ '{print $2}')
 
 # replace example.com domain with domain from mail_from argument
+echo "Replacing example.com domain with domain from mail_from argument..."
 mail_headers=$(echo $mail_headers | sed "s/example.com/$domain/")
 
 # send the email using the mail command
+echo "Sending email..."
 if [ -z "$bcc_address" ]; then
   mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 else
