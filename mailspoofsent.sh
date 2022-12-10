@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Check if postfix is installed
 if ! dpkg -s postfix &> /dev/null; then
   # Check if postfix and mailutils are installed
   if ! dpkg -s postfix &> /dev/null || ! dpkg -s mailutils &> /dev/null; then
