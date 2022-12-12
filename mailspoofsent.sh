@@ -32,21 +32,6 @@ if ! dpkg -s postfix &> /dev/null; then
   sudo systemctl start postfix
 fi
 
-# check the status of the postfix service
-status=$(systemctl status postfix)
-
-# check if the postfix service is active
-if [[ "$status" == *"active"* ]]; then
-  # postfix is active, so let the user know
-  echo "Postfix is already started, ready to start..."
-else
-  # postfix is inactive, so start it
-  systemctl start postfix
-
-  # let the user know that postfix was started
-  echo "Postfix has been started..."
-fi
-
 # show usage if no arguments are provided
 if [ $# -eq 0 ]; then
   echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body"
@@ -136,6 +121,21 @@ mail_headers=$(echo $mail_headers | sed "s/example.com/$domain/")
 if [ -z "$--spoof-domain" ]; then
     echo "Error: missing required argument --spoof-domain"
     exit 1
+fi
+
+# check the status of the postfix service
+status=$(systemctl status postfix)
+
+# check if the postfix service is active
+if [[ "$status" == *"active"* ]]; then
+  # postfix is active, so let the user know
+  echo "Postfix is already started, ready to start..."
+else
+  # postfix is inactive, so start it
+  systemctl start postfix
+
+  # let the user know that postfix was started
+  echo "Postfix has been started..."
 fi
 
 # send the email using the mail command
