@@ -1,6 +1,8 @@
 # Mailspoofsent
 
-Mailspoofsent is a Bash script that sends an email using the mail-from and mail-envelope addresses specified by the user.
+Mailspoofsent is a Bash script that sends an email using the mail-from and mail-envelope addresses specified by the user. It also changes some configuration values that are required to spoof email bypassing spam filters.
+
+It is recommended to read the "Explanation" section.
 
 ## Requirements
 
@@ -38,6 +40,7 @@ Options:
   --mail-envelope     The envelope sender for the email
   --subject           The subject of the email
   --body              The body of the email
+  --spoof-domain      The domain controlled by the attacker
 ```
 
 ## Explanation
@@ -83,3 +86,5 @@ When an email is received, the receiving mail server can use the public key to v
 #### Reverse DNS
 
 The sending Mail Server IP (Received From IP) must match the IP of the domain in the Pointer (PTR) record, also known as the Reverse DNS record. The PTR record verifies that the sending domain is associated with that sending Mail Server IP.
+
+A PTR record should be set to match the domain given in the '--spoof-domain' argument.
