@@ -12,6 +12,7 @@ It is recommended to read the "Explanation" section.
 ### Supplementary
 
 This part is not required, but it can be helpful for bypassing spam filters.
+Email Service Providers like Gmail, Yahoo, etc. may block emails coming from a mail server that does not have Reverse DNS in place.
 
 - Public IP address -> Valid PTR record
 
