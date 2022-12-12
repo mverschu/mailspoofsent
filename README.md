@@ -12,7 +12,6 @@ It is recommended to read the "Explanation" section.
 ### Supplementary
 
 This part is not required, but it can be helpful for bypassing spam filters.
-Email Service Providers like Gmail, Yahoo, etc. may block emails coming from a mail server that does not have Reverse DNS in place.
 
 - Public IP address -> Valid PTR record
 
@@ -97,3 +96,5 @@ When an email is received, the receiving mail server can use the public key to v
 The sending Mail Server IP (Received From IP) must match the IP of the domain in the Pointer (PTR) record, also known as the Reverse DNS record. The PTR record verifies that the sending domain is associated with that sending Mail Server IP.
 
 A PTR record should be set to match the domain given in the '--spoof-domain' argument.
+
+Email Service Providers like Gmail, Yahoo, etc. may block emails coming from a mail server that does not have Reverse DNS in place.
