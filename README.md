@@ -9,6 +9,12 @@ It is recommended to read the "Explanation" section.
 - Postfix
 - Mailutils
 
+### Supplementary
+
+This feature is not required, but it can be helpful for bypassing spam filters.
+
+- Public IP address -> Valid PTR record
+
 ## Usage
 
 ![2022-12-12_14-41](https://user-images.githubusercontent.com/69352107/207059533-faee0a8f-6bd0-4cbd-93a8-741725ee86a4.png)
