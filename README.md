@@ -5,6 +5,7 @@ Mailspoofsent is a Bash script that sends an email using the mail-from and mail-
 ## Requirements
 
 - Postfix
+- Mailutils
 
 ## Usage
 
