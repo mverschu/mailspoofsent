@@ -10,13 +10,13 @@ Mailspoofsent is a Bash script that sends an email using the mail-from and mail-
 ## Usage
 
 ```bash
-./mailspoofsent.sh --mail-from sender@example.com --mail-to recipient@example.com --mail-envelope envelope-sender@example.com --subject "Email subject" --body "Email body"
+./mailspoofsent.sh --mail-from sender@example.com --mail-to recipient@example.com --mail-envelope envelope-sender@example.com --subject "Email subject" --body "Email body --spoof-domain "example.com"
 ```
 
 To email with BCC option use:
 
 ```bash
-./mailspoofsent.sh --bcc bcc@example.com --mail-from sender@example.com --mail-to recipient@example.com --mail-envelope envelope-sender@example.com --subject "Email subject" --body "Email body"
+./mailspoofsent.sh --bcc bcc@example.com --mail-from sender@example.com --mail-to recipient@example.com --mail-envelope envelope-sender@example.com --subject "Email subject" --body "Email body" --spoof-domain "example.com"
 ```
 
 To show the usage information, run the script with the -h or --help option:
