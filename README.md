@@ -80,3 +80,6 @@ DKIM works by adding a digital signature to the headers of an email, which can b
 
 When an email is received, the receiving mail server can use the public key to verify the DKIM signature and determine if the email is likely to be legitimate. If the DKIM signature is valid, it indicates that the email has not been modified in transit and is likely to be legitimate.
 
+#### Reverse DNS
+
+The sending Mail Server IP (Received From IP) must match the IP of the domain in the Pointer (PTR) record, also known as the Reverse DNS record. The PTR record verifies that the sending domain is associated with that sending Mail Server IP.
