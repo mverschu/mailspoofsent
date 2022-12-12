@@ -11,7 +11,7 @@ It is recommended to read the "Explanation" section.
 
 ### Supplementary
 
-This feature is not required, but it can be helpful for bypassing spam filters.
+This part is not required, but it can be helpful for bypassing spam filters.
 
 - Public IP address -> Valid PTR record
 
