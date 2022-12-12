@@ -67,7 +67,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --mail-envelope     The envelope sender for the email"
       echo "  --subject           The subject of the email"
       echo "  --body              The body of the email"
-      echo "  --spoof-domain      The domain to spoof from"
+      echo "  --spoof-domain      The domain to spoof from under control of attacker"
       exit
       ;;
     --bcc)
@@ -111,7 +111,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-
 # Fake domainname in Postfix configuration
 MAIL_FROM_DOMAIN=$(echo $mail_from | awk -F@ '{print $2}')
 # Domain spoofing from should be under control of attacker.
@@ -132,6 +131,12 @@ domain=$(echo $mail_from | awk -F@ '{print $2}')
 # replace example.com domain with domain from mail_from argument
 echo "Replacing example.com domain with domain from mail_from argument..."
 mail_headers=$(echo $mail_headers | sed "s/example.com/$domain/")
+
+# check if spoof-domain is set
+if [ -z "$--spoof-domain" ]; then
+    echo "Error: missing required argument --spoof-domain"
+    exit 1
+fi
 
 # send the email using the mail command
 echo "Sending email..."
