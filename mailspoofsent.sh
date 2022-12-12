@@ -96,6 +96,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# check if spoof-domain is set
+if [ -z "$--spoof-domain" ]; then
+    echo "Error: missing required argument --spoof-domain"
+    exit 1
+fi
+
 # Fake domainname in Postfix configuration
 MAIL_FROM_DOMAIN=$(echo $mail_from | awk -F@ '{print $2}')
 # Domain spoofing from should be under control of attacker.
@@ -116,12 +122,6 @@ domain=$(echo $mail_from | awk -F@ '{print $2}')
 # replace example.com domain with domain from mail_from argument
 echo "Replacing example.com domain with domain from mail_from argument..."
 mail_headers=$(echo $mail_headers | sed "s/example.com/$domain/")
-
-# check if spoof-domain is set
-if [ -z "$--spoof-domain" ]; then
-    echo "Error: missing required argument --spoof-domain"
-    exit 1
-fi
 
 # check the status of the postfix service
 status=$(systemctl status postfix)
