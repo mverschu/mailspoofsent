@@ -34,7 +34,7 @@ fi
 
 # show usage if no arguments are provided
 if [ $# -eq 0 ]; then
-  echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body"
+  echo "Usage: ./mailspoofsent.sh --mail-from mail_from --mail-envelope mail_envelope --mail-to mail_to --subject subject --body body [--bcc bcc_address] --spoof-domain spoof_domain"
   exit
 fi
 
