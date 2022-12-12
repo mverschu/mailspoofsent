@@ -11,6 +11,8 @@ It is recommended to read the "Explanation" section.
 
 ## Usage
 
+![2022-12-12_14-41](https://user-images.githubusercontent.com/69352107/207059533-faee0a8f-6bd0-4cbd-93a8-741725ee86a4.png)
+
 ```bash
 ./mailspoofsent.sh --mail-from sender@example.com --mail-to recipient@example.com --mail-envelope envelope-sender@example.com --subject "Email subject" --body "Email body --spoof-domain "example.com"
 ```
