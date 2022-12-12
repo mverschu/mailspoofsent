@@ -38,8 +38,8 @@ if [ $# -eq 0 ]; then
   exit
 fi
 
-# check if spoof-domain is set
-if [ -z "$--spoof-domain" ]; then
+# Check if the required argument is provided
+if [ -z "$spoof_domain" ]; then
     echo "Error: missing required argument --spoof-domain"
     exit 1
 fi
