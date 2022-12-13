@@ -28,7 +28,9 @@ if ! dpkg -s postfix &> /dev/null; then
       fi
     fi
   fi
-  # Start postfix
+  # Adding requirements for spoofing and starting Postfix
+  sudo sed -i '/^smtp.mailfrom/ s/$/ example.example.com/' /etc/postfix/main.cf
+  sudo sed -i '/^header.from/ s/$/ example.example.com/' /etc/postfix/main.cf
   sudo systemctl start postfix
 fi
 
@@ -144,6 +146,11 @@ sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/
 sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
 echo "Appling changes to postfix configuration..."
 sudo service postfix restart
+
+# Cleaning up
+echo "Cleaning up for next run..."
+sed -i '/smtp.mailfrom/d' /etc/postfix/main.cf
+sed -i '/header.from/d' /etc/postfix/main.cf
 
 # send the email using the mail command
 echo "Sending email..."
