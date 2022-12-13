@@ -1,6 +1,6 @@
 # Mailspoofsent
 
-Mailspoofsent is a Bash script that sends an email using the mail-from and mail-envelope addresses specified by the user. It also changes some configuration values that are required to spoof email bypassing spam filters.
+Mailspoofsent is a Bash script that sends an email using the smtp.mailfrom and header.from addresses specified by the user. It also changes some configuration values that are required to spoof email bypassing spam filters.
 
 It is recommended to read the "Explanation" section.
 
