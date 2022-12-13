@@ -138,14 +138,21 @@ else
   echo "Postfix has been started..."
 fi
 
+# Set smtp.mailfrom to spoof SPF,DMARC and DKIM
+echo "Setting smtp.mailfrom address to mail_envelope value to bypass SPF,DMARC,DKIM..."
+sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/main.cf
+sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
+echo "Appling changes to postfix configuration..."
+sudo service postfix restart
+
 # send the email using the mail command
 echo "Sending email..."
 if [ -z "$bcc_address" ]; then
-  body="<html>$body</html>"
-  mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
+  #body="<html>$body</html>"
+  mail -s "$subject" -a "From:$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 else
   body="<html>$body</html>"
-  mail -s "$subject" -r "$mail_from" -a "Content-Type: text/html" -a "Envelope-From: $mail_envelope" -b "$bcc_address" "$mail_headers" "$mail_to" <<< "$body"
+  mail -s "$subject" -a "From:$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" -b "$bcc_address" "$mail_headers" "$mail_to" <<< "$body"
 fi
 
 # check if the mail command was successful
