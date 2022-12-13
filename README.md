@@ -26,15 +26,6 @@ chmod +x mailspoofsent.sh
 ./mailspoofsent
 ```
 
-Using Docker:
-
-```bash
-git clone https://github.com/mverschu/mailspoofsent
-cd mailspoofsent 
-docker build -t mailspoofsent ./
-docker run mailspoofsent
-```
-
 ## Usage
 
 ![2022-12-12_14-41](https://user-images.githubusercontent.com/69352107/207059533-faee0a8f-6bd0-4cbd-93a8-741725ee86a4.png)
