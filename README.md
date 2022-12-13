@@ -17,13 +17,22 @@ This part is not required, but it can be helpful for bypassing spam filters.
 
 ## Installation
 
-Install on Linux
+Install on Linux:
 
 ```bash
 git clone https://github.com/mverschu/mailspoofsent
 cd mailspoofsent
 chmod +x mailspoofsent.sh
 ./mailspoofsent
+```
+
+Using docker:
+
+```bash
+git clone https://github.com/mverschu/mailspoofsent
+cd mailspoofsent 
+docker build -t mailspoofsent ./
+docker run mailspoofsent
 ```
 
 ## Usage
