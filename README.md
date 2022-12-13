@@ -15,6 +15,17 @@ This part is not required, but it can be helpful for bypassing spam filters.
 
 - Public IP address -> Valid PTR record
 
+## Installation
+
+Install on Linux
+
+```bash
+git clone https://github.com/mverschu/mailspoofsent
+cd mailspoofsent
+chmod +x mailspoofsent.sh
+./mailspoofsent
+```
+
 ## Usage
 
 ![2022-12-12_14-41](https://user-images.githubusercontent.com/69352107/207059533-faee0a8f-6bd0-4cbd-93a8-741725ee86a4.png)
