@@ -43,9 +43,9 @@ Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to ma
 
 Options:
   --bcc bcc_address   Specify a bcc address for the email
-  --mail-from         The sender's email address
+  --mail-from         The email address shown in mail client
   --mail-to           The recipient's email address
-  --mail-envelope     The envelope sender for the email
+  --mail-envelope     The under control mail address to spoof e.g. SPF
   --subject           The subject of the email
   --body              The body of the email
   --spoof-domain      The domain controlled by the attacker
