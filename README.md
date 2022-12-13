@@ -26,7 +26,7 @@ chmod +x mailspoofsent.sh
 ./mailspoofsent
 ```
 
-Using docker:
+Using Docker:
 
 ```bash
 git clone https://github.com/mverschu/mailspoofsent
