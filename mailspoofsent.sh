@@ -155,7 +155,7 @@ sed -i '/header.from/d' /etc/postfix/main.cf
 # send the email using the mail command
 echo "[+] Sending email..."
 if [ -z "$bcc_address" ]; then
-  #body="<html>$body</html>"
+  body="<html>$body</html>"
   mail -s "$subject" -a "From: $mail_from" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 else
   body="<html>$body</html>"
