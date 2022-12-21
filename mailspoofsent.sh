@@ -159,7 +159,7 @@ if [ -z "$bcc_address" ]; then
   mail -s "$subject" -a "From: $mail_from" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 else
   body="<html>$body</html>"
-  mail -s "$subject" -a "From: $mail_from" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" -b "$bcc_address" "$mail_headers" "$mail_to" <<< "$body"
+  mail -s "$subject" -a "From: $mail_from" -a "BCC: $bcc_address" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 fi
 
 # check if the mail command was successful
