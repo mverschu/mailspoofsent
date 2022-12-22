@@ -2,6 +2,16 @@
 
 Mailspoofsent is a Bash script that sends an email using the smtp.mailfrom and header.from addresses specified by the user. It also changes some configuration values that are required to spoof email bypassing spam filters.
 
+The tool currently delivers spoofed mails successfully to:
+
+- [x] Google Workspace Professional (with smart features)
+- [x] Google Workspace
+- [x] Office 365 Professional
+- [x] Outlook Personal (50%)
+- [x] Yahoo Personal (50%)
+- [ ] Google Personal
+- [ ] Hotmail Personal
+
 It is recommended to read the "Explanation" section.
 
 ## Requirements
