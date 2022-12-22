@@ -140,8 +140,8 @@ else
   echo "[+] Postfix has been started..."
 fi
 
-# Set smtp.mailfrom to spoof SPF,DMARC and DKIM
-echo "[+] Setting smtp.mailfrom address to mail_envelope value to bypass SPF,DMARC..."
+# Set smtp.mailfrom to spoof SPF
+echo "[+] Setting smtp.mailfrom address to mail_envelope value to bypass SPF..."
 sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/main.cf
 sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
 echo "[+] Appling changes to postfix configuration..."
