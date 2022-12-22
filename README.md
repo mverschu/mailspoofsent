@@ -80,6 +80,11 @@ For example, if the mail-from address is sender@example.com and the mail-envelop
 
 In some cases, the mail-from and mail-envelope addresses may be the same, but it is also common to use a different address for the mail-envelope to protect the identity of the real sender or to prevent the email from being marked as spam.
 
+| Name | Argument | Bypass |
+|----------|----------|----------|
+| smtp.mailfrom  | --mail-envelope   | SPF check |
+| header.from | --mail-from | From field |
+
 ### Why mail configuration is so important?
 
 #### DMARC
