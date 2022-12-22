@@ -111,7 +111,7 @@ SPOOF_DOMAIN=$(echo $spoof_domain | awk -F@ '{print $2}')
 echo "[+] Updating hostname to $spoof_domain so PTR record lookup is for domain under control..."
 sudo sed -i "s/^myhostname =.*/myhostname = $spoof_domain/" /etc/postfix/main.cf
 echo "[+] Updating Postfix configuration..."
-sed -i "s/^mydestination =.*/mydestination = $myhostname, $MAIL_FROM_DOMAIN, localhost.localdomain, , localhost/" /etc/postfix/main.cf
+sed -i "s/^mydestination =.*/mydestination = $myhostname, localhost.localdomain, , localhost/" /etc/postfix/main.cf
 sudo systemctl restart postfix
 
 # add List-Unsubscribe header
