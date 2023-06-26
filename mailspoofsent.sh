@@ -29,8 +29,17 @@ if ! dpkg -s postfix &> /dev/null; then
     fi
   fi
   # Adding requirements for spoofing and starting Postfix
-  sudo sed -i '/^smtp.mailfrom/ s/$/ example.example.com/' /etc/postfix/main.cf
-  sudo sed -i '/^header.from/ s/$/ example.example.com/' /etc/postfix/main.cf
+if grep -q '^smtp.mailfrom =' /etc/postfix/main.cf; then
+    sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/main.cf
+else
+    sudo sh -c "echo 'smtp.mailfrom = $mail_envelope' >> /etc/postfix/main.cf"
+fi
+
+if grep -q '^header.from =' /etc/postfix/main.cf; then
+    sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
+else
+    sudo sh -c "echo 'header.from = $mail_from' >> /etc/postfix/main.cf"
+fi
   sudo systemctl start postfix
 fi
 
