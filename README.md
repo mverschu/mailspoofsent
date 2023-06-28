@@ -60,16 +60,17 @@ To show the usage information, run the script with the -h or --help option:
 ## Options
 
 ```
-Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body
+Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--htmlbody body.html] --spoof-domain domain
 
 Options:
   --bcc bcc_address   Specify a bcc address for the email
-  --mail-from         The email address shown in mail client
+  --mail-from         The mail address shown in mail client
   --mail-to           The recipient's email address
   --mail-envelope     The under control mail address to spoof e.g. SPF
   --subject           The subject of the email
   --body              The body of the email
-  --spoof-domain      The domain controlled by the attacker
+  --htmlbody          The HTML body of the email (provide file path)
+  --spoof-domain      The domain to spoof from under control of attacker
 ```
 
 ## Explanation
