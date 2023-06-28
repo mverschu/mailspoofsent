@@ -15,9 +15,13 @@ The tool currently delivers spoofed mails successfully to:
 It is recommended to read the "Explanation" section.
 
 ## Requirements
+*The install.sh script can be used to install all requirements.*
 
 - Postfix (when installing Postfix choose -> Internet Site -> Name doesn't matter)
 - Mailutils
+- Python3 (only for web UI)
+- Python3 PIP (only for web UI)
+- Flask (only for web UI)
 
 ### Supplementary
 
