@@ -57,6 +57,11 @@ Options:
   --web               Start the MailSpoofSent Web UI
 ```
 
+## Web UI
+The new version of MailSpoofSent offers users to use a Web UI. This is currently under development to be improved.
+
+![image](https://github.com/mverschu/mailspoofsent/assets/69352107/4fdad46d-afc3-4ba0-b6d0-d11ee33be082)
+
 ## Explanation
 
 The mail-from address is the address that appears in the "From" field of the email and is the address that the recipient sees as the sender of the email. The mail-envelope address, on the other hand, is the address that is used as the actual sender of the email and is used by the mail server to route the email.
