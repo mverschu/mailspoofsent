@@ -39,7 +39,7 @@ chmod +x mailspoofsent.sh
 ## Options
 
 ```
-Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--htmlbody body.html] --spoof-domain domain
+Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--htmlbody body.html] --spoof-domain domain [--web]
 
 Options:
   --bcc bcc_address   Specify a bcc address for the email
@@ -50,6 +50,7 @@ Options:
   --body              The body of the email
   --htmlbody          The HTML body of the email (provide file path)
   --spoof-domain      The domain to spoof from under control of attacker
+  --web               Start the MailSpoofSent Web UI
 ```
 
 ## Explanation
