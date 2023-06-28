@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mail Spoofing Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .navbar {
+      background-color: #333;
+      overflow: hidden;
+    }
+    
+    .navbar a {
+      float: left;
+      color: #fff;
+      text-align: center;
+      padding: 14px 16px;
+      text-decoration: none;
+      font-size: 16px;
+    }
+    
+    .navbar a:hover {
+      background-color: #111;
+    }
+    
+    .form-container {
+      max-width: 500px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: #f2f2f2;
+      border-radius: 5px;
+    }
+    
+    .form-container h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+    
+    .form-container label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    
+    .form-container input[type="text"],
+    .form-container textarea {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    
+    .form-container input[type="submit"] {
+      background-color: #4CAF50;
+      color: #fff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      float: right;
+      margin-top: 10px; /* Added margin-top */
+    }    
+    
+    .form-container input[type="submit"]:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <a href="#">Mail</a>
+  </div>
+  
+  <div class="form-container">
+    <h2>MailSpoofSent Web UI</h2>
+      <form action="/send-email" method="POST">
+      <label for="mail_from">From:</label>
+      <input type="text" id="mail_from" name="mail_from" placeholder="Enter the mail address shown in the mail client" required>
+      
+      <label for="mail-to">To:</label>
+      <input type="text" id="mail-to" name="mail_to" placeholder="Enter the recipient's email address" required>
+      
+      <label for="mail-envelope">Envelope:</label>
+      <input type="text" id="mail-envelope" name="mail_envelope" placeholder="Enter the under control mail address to spoof (e.g., SPF)" required>
+      
+      <label for="subject">Subject:</label>
+      <input type="text" id="subject" name="subject" placeholder="Enter the subject of the email" required>
+      
+      <label for="body">Body:</label>
+      <textarea id="body" name="body" placeholder="Enter the body of the email" required></textarea>
+      
+      <label for="spoof-domain">Spoof Domain:</label>
+      <input type="text" id="spoof-domain" name="spoof_domain" placeholder="Enter the domain to spoof from under control of the attacker" required>
+      
+      <input type="submit" value="Send Email">
+    </form>
+  </div>
+</body>
+</html>
