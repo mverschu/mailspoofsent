@@ -67,7 +67,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --body              The body of the email"
       echo "  --htmlbody          The HTML body of the email (provide file path)"
       echo "  --spoof-domain      The domain to spoof from under control of attacker"
-      echo "  --web               Start the Flask web server"
+      echo "  --web               Start the MailSpoofSent Web UI"
       exit
       ;;
     --bcc)
