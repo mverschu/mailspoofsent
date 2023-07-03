@@ -7,6 +7,21 @@ if [ "$(id -u)" != "0" ]; then
   exit 1
 fi
 
+# Function to start the web server
+start_web_server() {
+  echo "Starting the web server..."
+  echo "You can access the web interface at: http://localhost:5000"
+  echo "Press Ctrl+C to stop the web server."
+  python3 webserver.py
+}
+
+# Check if the script is being run with the --web option
+if [[ "$*" == *"--web"* ]]; then
+  # Start the Flask web server
+  start_web_server
+  exit
+fi
+
 if ! dpkg -s postfix &> /dev/null; then
   # Check if postfix and mailutils are installed
   if ! dpkg -s postfix &> /dev/null || ! dpkg -s mailutils &> /dev/null; then
@@ -28,24 +43,11 @@ if ! dpkg -s postfix &> /dev/null; then
       fi
     fi
   fi
-  # Adding requirements for spoofing and starting Postfix
-  if grep -q '^smtp.mailfrom =' /etc/postfix/main.cf; then
-    sudo sed -i "s/^smtp.mailfrom =.*/smtp.mailfrom = $mail_envelope/" /etc/postfix/main.cf
-  else
-    sudo sh -c "echo 'smtp.mailfrom = $mail_envelope' >> /etc/postfix/main.cf"
-  fi
-
-  if grep -q '^header.from =' /etc/postfix/main.cf; then
-    sudo sed -i "s/^header.from =.*/header.from = $mail_from/" /etc/postfix/main.cf
-  else
-    sudo sh -c "echo 'header.from = $mail_from' >> /etc/postfix/main.cf"
-  fi
-  sudo systemctl start postfix
 fi
 
 # show usage if no arguments are provided
 if [ $# -eq 0 ]; then
-  echo "Usage: ./mailspoofsent.sh --mail-from mail_from --mail-envelope mail_envelope --mail-to mail_to --subject subject --body body [--bcc bcc_address] [--htmlbody body.html] --spoof-domain spoof_domain"
+  echo "Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-envelope mail_envelope --mail-to mail_to --subject subject --body body [--htmlbody body.html] --spoof-domain domain"
   exit
 fi
 
@@ -65,6 +67,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --body              The body of the email"
       echo "  --htmlbody          The HTML body of the email (provide file path)"
       echo "  --spoof-domain      The domain to spoof from under control of attacker"
+      echo "  --web               Start the Flask web server"
       exit
       ;;
     --bcc)
@@ -163,7 +166,7 @@ echo "[+] Applying changes to postfix configuration..."
 sudo service postfix restart
 
 # Cleaning up
-echo "[-] Cleaning up for next run..."
+echo "[-] Cleaning up for the next run..."
 sed -i '/smtp.mailfrom/d' /etc/postfix/main.cf
 sed -i '/header.from/d' /etc/postfix/main.cf
 
