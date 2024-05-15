@@ -60,7 +60,7 @@ Options:
 ## Web UI
 The new version of MailSpoofSent offers users to use a Web UI. This is currently under development to be improved.
 
-![image](https://github.com/mverschu/mailspoofsent/assets/69352107/4fdad46d-afc3-4ba0-b6d0-d11ee33be082)
+![image](https://github.com/mverschu/mailspoofsent/assets/69352107/a293bfca-73ec-4605-8c75-23245fb5592b)
 
 ## Explanation
 
