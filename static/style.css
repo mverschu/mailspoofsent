@@ -1,0 +1,140 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+}
+
+#sidebar {
+    width: 250px;
+    height: 100vh;
+    background: #333;
+    color: #fff;
+    position: fixed;
+    left: 0;
+    top: 0;
+    transition: width 0.3s;
+}
+
+#sidebar.active {
+    width: 50px;
+}
+
+#sidebar .toggle-btn {
+    position: absolute;
+    left: 100%;
+    top: 15px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 30px;
+    height: 25px;
+}
+
+#sidebar .toggle-btn span {
+    height: 4px;
+    width: 100%;
+    background: #fff;
+    border-radius: 3px;
+}
+
+#sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#sidebar ul li {
+    padding: 15px;
+    text-align: center;
+}
+
+#sidebar ul li a {
+    color: #fff;
+    text-decoration: none;
+    display: block;
+}
+
+#content {
+    margin-left: 250px;
+    padding: 20px;
+    width: calc(100% - 250px);
+    transition: margin-left 0.3s;
+}
+
+#sidebar.active + #content {
+    margin-left: 50px;
+    width: calc(100% - 50px);
+}
+
+.form-container {
+    max-width: 600px;
+    margin: auto;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="file"],
+textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+textarea {
+    height: 100px;
+}
+
+.btn {
+    background: #007bff;
+    color: #fff;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background: #0056b3;
+}
+
+.terminal {
+    background: #000;
+    color: #0f0;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 20px;
+    width: calc(100% - 250px);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.terminal-output {
+    height: 150px;
+    overflow-y: scroll;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #111;
+    border-radius: 4px;
+}
+
+.terminal-output .timestamp {
+    color: #0f0;
+    font-weight: bold;
+}
+
+.terminal-output .email {
+    color: #fff;
+}
