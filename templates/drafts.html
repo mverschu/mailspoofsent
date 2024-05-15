@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+
+{% block title %}Manage Drafts{% endblock %}
+
+{% block content %}
+<h1>Drafts</h1>
+<form action="/drafts" method="post" class="form-container">
+    <input type="hidden" name="draft_id" value="new_draft">
+    
+    <div class="form-group">
+        <label for="mail_from">From:</label>
+        <input type="email" id="mail_from" name="mail_from" required>
+    </div>
+
+    <div class="form-group">
+        <label for="mail_to">To:</label>
+        <input type="email" id="mail_to" name="mail_to" required>
+    </div>
+
+    <div class="form-group">
+        <label for="mail_envelope">Envelope:</label>
+        <input type="email" id="mail_envelope" name="mail_envelope" required>
+    </div>
+
+    <div class="form-group">
+        <label for="subject">Subject:</label>
+        <input type="text" id="subject" name="subject" required>
+    </div>
+
+    <div class="form-group">
+        <label for="body">Body:</label>
+        <textarea id="body" name="body"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="spoof_domain">Spoof Domain:</label>
+        <input type="text" id="spoof_domain" name="spoof_domain" required>
+    </div>
+
+    <button type="submit" class="btn">Save Draft</button>
+</form>
+
+<h2>Existing Drafts</h2>
+<ul>
+    {% for draft in drafts %}
+        <li>{{ draft }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}
