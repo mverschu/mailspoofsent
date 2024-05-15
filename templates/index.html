@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+
+{% block title %}Send Email{% endblock %}
+
+{% block content %}
+<h1>Send Email</h1>
+<form action="/send-email" method="post" enctype="multipart/form-data" class="form-container">
+    <div class="form-group">
+        <label for="mail_from">From:</label>
+        <input type="email" id="mail_from" name="mail_from" required>
+    </div>
+
+    <div class="form-group">
+        <label for="mail_to">To:</label>
+        <input type="email" id="mail_to" name="mail_to" required>
+    </div>
+
+    <div class="form-group">
+        <label for="mail_envelope">Envelope:</label>
+        <input type="email" id="mail_envelope" name="mail_envelope" required>
+    </div>
+
+    <div class="form-group">
+        <label for="subject">Subject:</label>
+        <input type="text" id="subject" name="subject" required>
+    </div>
+
+    <div class="form-group">
+        <label for="body">Body:</label>
+        <textarea id="body" name="body"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="html_body">HTML Body File:</label>
+        <input type="file" id="html_body" name="html_body">
+    </div>
+
+    <div class="form-group">
+        <label for="spoof_domain">Spoof Domain:</label>
+        <input type="text" id="spoof_domain" name="spoof_domain" required>
+    </div>
+
+    <button type="submit" class="btn">Send Email</button>
+</form>
+
+<h2>Terminal Log</h2>
+<button class="btn" onclick="showLog()">Log</button>
+<div class="terminal">
+    <div id="log" class="terminal-output"></div>
+</div>
+
+<script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+<script>
+    const socket = io();
+
+    function showLog() {
+        fetch('/log')
+            .then(response => response.json())
+            .then(data => {
+                updateLog(data.log);
+            });
+    }
+
+    function updateLog(logEntries) {
+        const logDiv = document.getElementById('log');
+        logDiv.innerHTML = logEntries.map(entry => `
+            <div>
+                <span class="timestamp">${entry.timestamp}</span>
+                <span class="email">${entry.email}</span>
+            </div>
+        `).join('');
+    }
+
+    socket.on('log_update', function(log_entry) {
+        const logDiv = document.getElementById('log');
+        logDiv.innerHTML += `
+            <div>
+                <span class="timestamp">${log_entry.timestamp}</span>
+                <span class="email">${log_entry.email}</span>
+            </div>
+        `;
+    });
+
+    showLog();
+</script>
+{% endblock %}
