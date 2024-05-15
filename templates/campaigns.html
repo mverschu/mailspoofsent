@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+
+{% block title %}Manage Campaigns{% endblock %}
+
+{% block content %}
+<h1>Campaigns</h1>
+<form action="/campaigns" method="post" class="form-container">
+    <input type="hidden" name="campaign_id" value="new_campaign">
+    
+    <div class="form-group">
+        <label for="campaign_name">Campaign Name:</label>
+        <input type="text" id="campaign_name" name="campaign_name" required>
+    </div>
+
+    <div class="form-group">
+        <label for="draft_ids">Select Drafts:</label>
+        <select id="draft_ids" name="draft_ids" multiple>
+            {% for draft in drafts %}
+                <option value="{{ draft }}">{{ draft }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button type="submit" class="btn">Save Campaign</button>
+</form>
+
+<h2>Existing Campaigns</h2>
+<ul>
+    {% for campaign in campaigns %}
+        <li>{{ campaign }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}
