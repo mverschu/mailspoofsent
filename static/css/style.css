@@ -1,0 +1,234 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #343a40;
+}
+
+.card {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+    font-weight: 600;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    padding: 10px 15px;
+    border: 1px solid #ced4da;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.btn-outline-primary {
+    color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-outline-primary:hover {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.footer {
+    margin-top: 3rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.log-card {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    padding: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-timestamp {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* Custom toast notification */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+}
+
+.custom-toast {
+    min-width: 250px;
+    margin-bottom: 10px;
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.custom-toast.show {
+    opacity: 1;
+}
+
+/* Email editor styles */
+.html-editor {
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    min-height: 300px;
+    padding: 15px;
+    background-color: white;
+}
+
+/* Campaign and draft cards */
+.campaign-card, .draft-card {
+    margin-bottom: 20px;
+}
+
+.campaign-list, .draft-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Domain security checker styles - Add to your existing style.css */
+
+/* Domain status container */
+.domain-status {
+    min-height: 24px;
+    margin-top: 8px;
+}
+
+/* Status message styling */
+.domain-status-message {
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+/* Detailed domain info panel */
+.domain-detail-panel {
+    font-size: 0.85rem;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+}
+
+/* Code blocks in details panel */
+.domain-detail-panel code {
+    white-space: pre-wrap;
+    word-break: break-all;
+    display: block;
+    background-color: #f1f1f1;
+    padding: 4px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+/* Animated spinner for loading state */
+.spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.1em;
+    vertical-align: middle;
+}
+
+/* Add these styles to your existing style.css file */
+
+/* Compact domain status under the input */
+.domain-status {
+    min-height: 24px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+}
+
+/* Status message styling */
+.domain-status-message {
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+/* Domain details card in sidebar */
+#domain-details-card {
+    margin-bottom: 20px;
+}
+
+/* Detailed domain info panel */
+.domain-detail-panel {
+    font-size: 0.85rem;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+}
+
+/* Code blocks in details panel */
+.domain-detail-panel code {
+    white-space: pre-wrap;
+    word-break: break-all;
+    display: block;
+    background-color: #f1f1f1;
+    padding: 4px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+/* Animated spinner for loading state */
+.spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.1em;
+    vertical-align: middle;
+}
+
+/* Keep sidebar cards from shifting too much */
+.col-lg-4 .card {
+    margin-bottom: 1rem;
+}
+
+/* Button styling for view details */
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}

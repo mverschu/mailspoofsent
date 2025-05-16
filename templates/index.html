@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Send Email{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-paper-plane me-2"></i> Send Spoofed Email
+            </div>
+            <div class="card-body position-relative">
+                <form id="email-form" action="{{ url_for('send_email') }}" method="post" enctype="multipart/form-data">
+                    <!-- From/Envelope Row - Reduced vertical margins -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label for="mail_from" class="form-label">From Address (Displayed)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" class="form-control" id="mail_from" name="mail_from" placeholder="ceo@company.com" required>
+                            </div>
+                            <small class="text-muted">The address shown in mail clients</small>
+                            <!-- Compact domain status will be inserted here by JavaScript -->
+                        </div>
+                        <div class="col-md-6">
+                            <label for="mail_envelope" class="form-label">Envelope Sender (SPF)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="text" class="form-control" id="mail_envelope" name="mail_envelope" placeholder="noreply@your-domain.com" required>
+                            </div>
+                            <small class="text-muted">Domain must have valid SPF</small>
+                        </div>
+                    </div>
+
+                    <!-- To/BCC Row - Reduced vertical margins -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label for="mail_to" class="form-label">To Address</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user-friends"></i></span>
+                                <input type="text" class="form-control" id="mail_to" name="mail_to" placeholder="victim@target.com" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bcc" class="form-label">BCC Address</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user-secret"></i></span>
+                                <input type="text" class="form-control" id="bcc" name="bcc" placeholder="bcc@example.com">
+                            </div>
+                            <small class="text-muted">Optional hidden recipient</small>
+                        </div>
+                    </div>
+
+                    <!-- Spoof Domain Row - Reduced bottom margin -->
+                    <div class="row mb-2">
+                        <div class="col-md-12">
+                            <label for="spoof_domain" class="form-label">Spoof Domain</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-globe"></i></span>
+                                <input type="text" class="form-control" id="spoof_domain" name="spoof_domain" placeholder="attacker-domain.com" required>
+                            </div>
+                            <small class="text-muted">Domain under attacker control</small>
+                        </div>
+                    </div>
+
+                    <!-- Subject Row - Reduced bottom margin -->
+                    <div class="mb-2">
+                        <label for="subject" class="form-label">Subject</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-heading"></i></span>
+                            <input type="text" class="form-control" id="subject" name="subject" placeholder="Important Notice" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email Body</label>
+                        <ul class="nav nav-tabs mb-2" id="bodyTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-body" type="button" role="tab">Text Editor</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="visual-tab" data-bs-toggle="tab" data-bs-target="#visual-body" type="button" role="tab">Visual Editor</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-body" type="button" role="tab">Upload HTML</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="bodyTabContent">
+                            <div class="tab-pane fade show active" id="text-body" role="tabpanel">
+                                <textarea class="form-control" id="body-input" name="body" rows="8" placeholder="Enter your email content here..."></textarea>
+                            </div>
+                            <div class="tab-pane fade" id="visual-body" role="tabpanel">
+                                <div id="html-editor" class="html-editor" contenteditable="true"></div>
+                            </div>
+                            <div class="tab-pane fade" id="upload-body" role="tabpanel">
+                                <div class="input-group mb-2">
+                                    <input type="file" class="form-control" id="html_body" name="html_body" accept=".html">
+                                    <label class="input-group-text" for="html_body">Upload</label>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Upload an HTML file for the email body
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i> Send Email
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-history me-2"></i> Recent Activity
+            </div>
+            <div class="card-body p-0 log-card">
+                <div id="log-container">
+                    <!-- Log entries will be populated here -->
+                    {% if log_data %}
+                        {% for entry in log_data %}
+                        <div class="log-entry p-2 border-bottom">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">{{ entry.email }}</span>
+                                <span class="log-timestamp">{{ entry.timestamp }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="p-3 text-center text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>No email activity yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Domain security details card will be inserted here by JavaScript -->
+
+        <div class="card mt-4">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-info-circle me-2"></i> Tool Information
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">MailSpoofSent</h5>
+                <p class="card-text">This tool allows you to send spoofed emails for security testing and educational purposes only.</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Only use this tool for authorized security testing. Unauthorized use may violate laws.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Include the domain checker script -->
+<script src="{{ url_for('static', filename='js/domain_checker.js') }}"></script>
+<script>
+    // Fetch log data on page load
+    fetch('/log')
+        .then(response => response.json())
+        .then(data => {
+            const logContainer = document.getElementById('log-container');
+            if (logContainer && data.log && data.log.length > 0) {
+                logContainer.innerHTML = '';
+                data.log.forEach(entry => {
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'log-entry p-2 border-bottom';
+                    logEntry.innerHTML = `
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-bold">${entry.email}</span>
+                            <span class="log-timestamp">${entry.timestamp}</span>
+                        </div>
+                    `;
+                    logContainer.appendChild(logEntry);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching log data:', error);
+        });
+</script>
+{% endblock %}
