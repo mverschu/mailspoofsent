@@ -375,7 +375,6 @@ function saveDraft() {
     })
     .catch(error => {
         console.error('Error saving draft:', error);
-        showNotification('Error', 'Failed to save draft', 'error');
     });
 }
 

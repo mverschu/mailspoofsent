@@ -168,7 +168,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                showNotification('Error', error.message || 'Failed to save draft.', 'error');
                 console.error('Error:', error);
             });
         });
