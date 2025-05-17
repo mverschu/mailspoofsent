@@ -23,7 +23,7 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configuration
-app.config['LOG_FILE'] = 'log.json'
+app.config['LOG_FILE'] = '/tmp/log.json'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['DRAFTS_FOLDER'] = 'drafts'
 app.config['CAMPAIGNS_FOLDER'] = 'campaigns'
