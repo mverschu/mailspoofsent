@@ -115,7 +115,6 @@ function initTemplateManagement() {
             })
             .catch(error => {
                 console.error('Error creating template:', error);
-                showNotification('Error', 'Failed to create template', 'error');
             });
         });
     }
