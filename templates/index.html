@@ -10,7 +10,44 @@
                 <i class="fas fa-paper-plane me-2"></i> Send Spoofed Email
             </div>
             <div class="card-body position-relative">
+                <!-- Templates and Drafts Selection Row -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="template_select" class="form-label">Use Template</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-file-alt"></i></span>
+                            <select class="form-select" id="template_select">
+                                <option value="">-- Select Template --</option>
+                                {% for template in templates %}
+                                <option value="{{ template.id }}" {% if request.args.get('template_id') == template.id %}selected{% endif %}>{{ template.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <a href="{{ url_for('manage_templates') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-cog"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="draft_select" class="form-label">Load Draft</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-save"></i></span>
+                            <select class="form-select" id="draft_select">
+                                <option value="">-- Select Draft --</option>
+                                {% for draft_id in drafts %}
+                                <option value="{{ draft_id }}">Draft {{ draft_id | format_timestamp }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" id="save-draft-btn" class="btn btn-outline-primary">
+                                <i class="fas fa-save"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <form id="email-form" action="{{ url_for('send_email') }}" method="post" enctype="multipart/form-data">
+                    <!-- Hidden field for draft ID -->
+                    <input type="hidden" id="draft_id" name="draft_id" value="draft_{{ now_timestamp|default(((current_time|default(0)) * 1000)|int) }}">
+                    
                     <!-- From/Envelope Row - Reduced vertical margins -->
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
@@ -91,7 +128,9 @@
                                 <textarea class="form-control" id="body-input" name="body" rows="8" placeholder="Enter your email content here..."></textarea>
                             </div>
                             <div class="tab-pane fade" id="visual-body" role="tabpanel">
-                                <div id="html-editor" class="html-editor" contenteditable="true"></div>
+                                <div class="visual-editor-container" style="border: 1px solid #ced4da; border-radius: 0.25rem; padding: 0; overflow: hidden; height: 400px;">
+                                    <iframe id="html-editor-frame" style="width: 100%; height: 100%; border: none;"></iframe>
+                                </div>
                             </div>
                             <div class="tab-pane fade" id="upload-body" role="tabpanel">
                                 <div class="input-group mb-2">
@@ -109,6 +148,9 @@
                     <div class="d-flex justify-content-between">
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-paper-plane me-2"></i> Send Email
+                        </button>
+                        <button type="button" id="clear-form-btn" class="btn btn-outline-secondary">
+                            <i class="fas fa-eraser me-2"></i> Clear Form
                         </button>
                     </div>
                 </form>
@@ -156,6 +198,16 @@
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     Only use this tool for authorized security testing. Unauthorized use may violate laws.
                 </div>
+                
+                <!-- Quick template access buttons -->
+                <div class="mt-3">
+                    <h6><i class="fas fa-file-alt me-2"></i> Quick Templates</h6>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('manage_templates') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-cogs me-2"></i> Manage Templates
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -189,5 +241,229 @@
         .catch(error => {
             console.error('Error fetching log data:', error);
         });
+        
+    // Template selection functionality
+    const templateSelect = document.getElementById('template_select');
+    if (templateSelect) {
+        templateSelect.addEventListener('change', function() {
+            const templateId = this.value;
+            if (!templateId) return;
+            
+            // Show loading indicator
+            const bodyInput = document.getElementById('body-input');
+            const htmlEditor = document.getElementById('html-editor');
+            bodyInput.placeholder = 'Loading template...';
+            
+            // Fetch template data
+            fetch(`/templates/${templateId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Populate form fields
+                    document.getElementById('subject').value = data.subject || '';
+                    
+                    // Process HTML content to ensure it displays correctly
+                    let bodyContent = data.body || '';
+                    bodyInput.value = bodyContent;
+                    
+                    // Update visual editor if available
+                    if (htmlEditor) {
+                        try {
+                            // Extract body content if it's a full HTML document
+                            if (bodyContent.includes('<html') && bodyContent.includes('<body')) {
+                                const tempDiv = document.createElement('div');
+                                tempDiv.innerHTML = bodyContent;
+                                const bodyElement = tempDiv.querySelector('body');
+                                if (bodyElement) {
+                                    htmlEditor.innerHTML = bodyElement.innerHTML;
+                                } else {
+                                    htmlEditor.innerHTML = bodyContent;
+                                }
+                            } else {
+                                htmlEditor.innerHTML = bodyContent;
+                            }
+                        } catch (e) {
+                            console.error('Error processing HTML:', e);
+                            htmlEditor.innerHTML = bodyContent;
+                        }
+                    }
+                    
+                })
+                .catch(error => {
+                    console.error('Error loading template:', error);
+                    showNotification('Error', 'Failed to load template', 'error');
+                    bodyInput.placeholder = 'Enter your email content here...';
+                });
+        });
+        
+        // Auto-load template if specified in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const templateId = urlParams.get('template_id');
+        if (templateId) {
+            templateSelect.value = templateId;
+            templateSelect.dispatchEvent(new Event('change'));
+        }
+    }
+    
+    // Draft selection functionality
+    const draftSelect = document.getElementById('draft_select');
+    if (draftSelect) {
+        draftSelect.addEventListener('change', function() {
+            const draftId = this.value;
+            if (!draftId) return;
+            
+            // Fetch draft data
+            fetch(`/draft/${draftId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Populate form fields
+                    document.getElementById('mail_from').value = data.mail_from || '';
+                    document.getElementById('mail_to').value = data.mail_to || '';
+                    document.getElementById('mail_envelope').value = data.mail_envelope || '';
+                    document.getElementById('subject').value = data.subject || '';
+                    document.getElementById('body-input').value = data.body || '';
+                    document.getElementById('spoof_domain').value = data.spoof_domain || '';
+                    document.getElementById('bcc').value = data.bcc || '';
+                    document.getElementById('draft_id').value = draftId;
+                    
+                    // Update visual editor if available
+                    const htmlEditor = document.getElementById('html-editor');
+                    if (htmlEditor) {
+                        htmlEditor.innerHTML = data.body || '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading draft:', error);
+                    showNotification('Error', 'Failed to load draft', 'error');
+                });
+        });
+    }
+    
+    // Save draft functionality
+    const saveDraftBtn = document.getElementById('save-draft-btn');
+    if (saveDraftBtn) {
+        saveDraftBtn.addEventListener('click', function() {
+            const form = document.getElementById('email-form');
+            const formData = new FormData(form);
+            
+            fetch('/drafts', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Success', 'Draft saved successfully', 'success');
+                    
+                    // Add the new draft to the dropdown if it's not already there
+                    const draftId = data.draft_id;
+                    let draftExists = false;
+                    for (let i = 0; i < draftSelect.options.length; i++) {
+                        if (draftSelect.options[i].value === draftId) {
+                            draftExists = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!draftExists) {
+                        const option = document.createElement('option');
+                        option.value = draftId;
+                        option.text = `Draft (Just now)`;
+                        draftSelect.appendChild(option);
+                    }
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving draft:', error);
+                showNotification('Error', 'Failed to save draft', 'error');
+            });
+        });
+    }
+    
+    // Clear form button
+    const clearFormBtn = document.getElementById('clear-form-btn');
+    if (clearFormBtn) {
+        clearFormBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the form?')) {
+                document.getElementById('email-form').reset();
+                document.getElementById('draft_id').value = 'draft_' + Date.now();
+                document.getElementById('template_select').value = '';
+                document.getElementById('draft_select').value = '';
+                
+                // Clear visual editor if available
+                const htmlEditor = document.getElementById('html-editor');
+                if (htmlEditor) {
+                    htmlEditor.innerHTML = '';
+                }
+                
+                showNotification('Info', 'Form cleared', 'success');
+            }
+        });
+    }
+    
+    // Visual editor sync with hidden textarea using iframe
+    const htmlEditorFrame = document.getElementById('html-editor-frame');
+    const bodyInput = document.getElementById('body-input');
+    
+    if (htmlEditorFrame && bodyInput) {
+        // Initialize iframe editor when tab is clicked
+        document.getElementById('visual-tab').addEventListener('click', function() {
+            initializeIframeEditor();
+        });
+        
+        // Also sync when switching back to text tab
+        document.getElementById('text-tab').addEventListener('click', function() {
+            updateTextareaFromIframe();
+        });
+        
+        // Function to initialize the iframe editor
+        function initializeIframeEditor() {
+            // Get iframe document
+            const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+            
+            // Create base HTML structure with styles to contain content
+            iframeDoc.open();
+            iframeDoc.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            padding: 10px;
+                            margin: 0;
+                            line-height: 1.6;
+                            min-height: 100%;
+                        }
+                        img { max-width: 100%; height: auto; }
+                        table { max-width: 100%; }
+                    </style>
+                </head>
+                <body contenteditable="true">${bodyInput.value}</body>
+                </html>
+            `);
+            iframeDoc.close();
+            
+            // Add event listener to sync changes
+            iframeDoc.body.addEventListener('input', function() {
+                updateTextareaFromIframe();
+            });
+        }
+        
+        // Function to update textarea from iframe
+        function updateTextareaFromIframe() {
+            try {
+                const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                if (iframeDoc && iframeDoc.body) {
+                    bodyInput.value = iframeDoc.body.innerHTML;
+                }
+            } catch (e) {
+                console.error('Error updating from iframe:', e);
+            }
+        }
+    }
 </script>
 {% endblock %}

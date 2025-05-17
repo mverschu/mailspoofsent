@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Sudo Required{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <i class="fas fa-shield-alt me-2"></i> Sudo Rights Required
+            </div>
+            <div class="card-body text-center">
+                <i class="fas fa-lock fa-4x text-danger mb-4"></i>
+                <h3>This tool requires sudo rights</h3>
+                <p class="lead">MailSpoofSent requires root privileges to properly configure the mail server and send spoofed emails.</p>
+                <div class="alert alert-info">
+                    <p>Please restart the application with sudo:</p>
+                    <code>sudo python3 mailspoofsent.py --web</code>
+                </div>
+                <div class="mt-4">
+                    <a href="/" class="btn btn-primary">Try Again</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

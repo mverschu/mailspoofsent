@@ -30,6 +30,14 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/templates' %}active{% endif %}" href="{{ url_for('manage_templates') }}">
+                            <i class="fas fa-file-alt me-1"></i> Templates
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/drafts' %}active{% endif %}" href="{{ url_for('manage_drafts') }}">
+                            <i class="fas fa-save me-1"></i> Drafts
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -52,6 +60,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
     <!-- Include custom JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <!-- Include template JavaScript -->
+    <script src="{{ url_for('static', filename='js/templates.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

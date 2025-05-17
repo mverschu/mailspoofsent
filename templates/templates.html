@@ -1,0 +1,509 @@
+{% extends "base.html" %}
+
+{% block title %}Email Templates{% endblock %}
+
+{% block head %}
+<!-- Add any template-specific CSS here -->
+<style>
+    .template-preview-frame {
+        width: 100%;
+        min-height: 300px;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-file-alt me-2"></i> Email Templates
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createTemplateModal">
+                        <i class="fas fa-plus me-2"></i> Create New Template
+                    </button>
+                </div>
+
+                {% if templates %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Subject</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for template in templates %}
+                            <tr>
+                                <td>{{ template.name }}</td>
+                                <td>{{ template.description }}</td>
+                                <td>{{ template.subject }}</td>
+                                <td>{{ template.created_at }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-outline-primary preview-template" data-template-id="{{ template.id }}" data-bs-toggle="collapse" data-bs-target="#preview-{{ template.id }}">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary edit-template" data-template-id="{{ template.id }}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger delete-template" data-template-id="{{ template.id }}" data-template-name="{{ template.name }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="collapse" id="preview-{{ template.id }}">
+                                <td colspan="5" class="p-0">
+                                    <div class="preview-container bg-light p-3">
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <h6 class="mb-2">Preview:</h6>
+                                                <div class="preview-iframe-container" style="height: 300px; border: 1px solid #dee2e6; border-radius: 0.25rem; overflow: hidden;">
+                                                    <iframe class="inline-preview-frame" style="width: 100%; height: 100%; border: none;" data-template-id="{{ template.id }}"></iframe>
+                                                </div>
+                                                <div class="d-flex justify-content-end mt-2">
+                                                    <a href="/?template_id={{ template.id }}" class="btn btn-sm btn-primary">
+                                                        <i class="fas fa-check me-1"></i> Use Template
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <p>No email templates found. Create your first template to get started!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-info-circle me-2"></i> About Templates
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">Email Templates</h5>
+                <p class="card-text">Templates make it easy to reuse email content for different recipients.</p>
+                <div class="alert alert-primary">
+                    <h6><i class="fas fa-lightbulb me-2"></i> Template Tips</h6>
+                    <ul class="mb-0">
+                        <li>Create templates for common email types</li>
+                        <li>Use HTML for rich formatting</li>
+                        <li>Templates are stored securely on your server</li>
+                        <li>Easily apply templates when sending emails</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Template Preview Card (Hidden until needed) -->
+        <div class="card mt-4 d-none" id="template-preview-card">
+            <div class="card-header bg-secondary text-white">
+                <i class="fas fa-eye me-2"></i> <span id="preview-template-name">Template Preview</span>
+            </div>
+            <div class="card-body">
+                <h6 class="mb-2">Subject:</h6>
+                <div class="alert alert-light mb-3" id="preview-subject"></div>
+                
+                <h6 class="mb-2">Body:</h6>
+                <div class="border rounded p-3 mb-3 bg-light" style="height: 300px; overflow: hidden;">
+                    <iframe id="preview-body-frame" style="width: 100%; height: 100%; border: none;"></iframe>
+                </div>
+                
+                <div class="d-grid">
+                    <button class="btn btn-primary" id="use-template-btn">
+                        <i class="fas fa-check me-2"></i> Use This Template
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Template Modal -->
+<div class="modal fade" id="createTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i> Create New Template</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="create-template-form" action="{{ url_for('add_template') }}" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="template_name" class="form-label">Template Name</label>
+                        <input type="text" class="form-control" id="template_name" name="template_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="template_description" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="template_description" name="template_description">
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="subject" name="subject">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email Body</label>
+                        <ul class="nav nav-tabs mb-2" id="templateBodyTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="template-text-tab" data-bs-toggle="tab" data-bs-target="#template-text-body" type="button" role="tab">Text Editor</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="template-visual-tab" data-bs-toggle="tab" data-bs-target="#template-visual-body" type="button" role="tab">Visual Editor</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="template-upload-tab" data-bs-toggle="tab" data-bs-target="#template-upload-body" type="button" role="tab">Upload HTML</button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content" id="templateBodyTabContent">
+                            <div class="tab-pane fade show active" id="template-text-body" role="tabpanel">
+                                <textarea class="form-control" id="template-body-input" name="body" rows="8" placeholder="Enter your email template content here..."></textarea>
+                            </div>
+                            <div class="tab-pane fade" id="template-visual-body" role="tabpanel">
+                                <div class="visual-editor-container">
+                                    <iframe id="template-html-editor-frame" style="width: 100%; height: 100%; border: none;"></iframe>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="template-upload-body" role="tabpanel">
+                                <div class="input-group mb-2">
+                                    <input type="file" class="form-control" id="template_html_body" name="html_body" accept=".html">
+                                    <label class="input-group-text" for="template_html_body">Upload</label>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Upload an HTML file for the email template
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Save Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Template Modal -->
+<div class="modal fade" id="editTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i> Edit Template</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="edit-template-form" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_template_name" class="form-label">Template Name</label>
+                        <input type="text" class="form-control" id="edit_template_name" name="template_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_template_description" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="edit_template_description" name="template_description">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_subject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="edit_subject" name="subject">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email Body</label>
+                        <ul class="nav nav-tabs mb-2" id="editTemplateBodyTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="edit-template-text-tab" data-bs-toggle="tab" data-bs-target="#edit-template-text-body" type="button" role="tab">Text Editor</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="edit-template-visual-tab" data-bs-toggle="tab" data-bs-target="#edit-template-visual-body" type="button" role="tab">Visual Editor</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="edit-template-upload-tab" data-bs-toggle="tab" data-bs-target="#edit-template-upload-body" type="button" role="tab">Upload HTML</button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content" id="editTemplateBodyTabContent">
+                            <div class="tab-pane fade show active" id="edit-template-text-body" role="tabpanel">
+                                <textarea class="form-control" id="edit-template-body-input" name="body" rows="8" placeholder="Enter your email template content here..."></textarea>
+                            </div>
+                            <div class="tab-pane fade" id="edit-template-visual-body" role="tabpanel">
+                                <div class="visual-editor-container">
+                                    <iframe id="edit-template-html-editor-frame" style="width: 100%; height: 100%; border: none;"></iframe>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="edit-template-upload-body" role="tabpanel">
+                                <div class="input-group mb-2">
+                                    <input type="file" class="form-control" id="edit_template_html_body" name="html_body" accept=".html">
+                                    <label class="input-group-text" for="edit_template_html_body">Upload</label>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Upload a new HTML file or leave empty to keep the existing one
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Template Confirmation Modal -->
+<div class="modal fade" id="deleteTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-trash me-2"></i> Delete Template</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the template '<span id="delete-template-name"></span>'?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i> This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-template">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Visual editor initialization for create form
+    const templateVisualTab = document.getElementById('template-visual-tab');
+    const templateHtmlEditorFrame = document.getElementById('template-html-editor-frame');
+    const templateBodyInput = document.getElementById('template-body-input');
+    
+    if (templateVisualTab && templateHtmlEditorFrame && templateBodyInput) {
+        templateVisualTab.addEventListener('click', function() {
+            initIframeEditor(templateHtmlEditorFrame, templateBodyInput);
+        });
+        
+        // Sync from iframe to textarea when switching back to text tab
+        document.getElementById('template-text-tab')?.addEventListener('click', function() {
+            syncIframeToTextarea(templateHtmlEditorFrame, templateBodyInput);
+        });
+    }
+    
+    // Visual editor initialization for edit form
+    const editTemplateVisualTab = document.getElementById('edit-template-visual-tab');
+    const editTemplateHtmlEditorFrame = document.getElementById('edit-template-html-editor-frame');
+    const editTemplateBodyInput = document.getElementById('edit-template-body-input');
+    
+    if (editTemplateVisualTab && editTemplateHtmlEditorFrame && editTemplateBodyInput) {
+        editTemplateVisualTab.addEventListener('click', function() {
+            initIframeEditor(editTemplateHtmlEditorFrame, editTemplateBodyInput);
+        });
+        
+        // Sync from iframe to textarea when switching back to text tab
+        document.getElementById('edit-template-text-tab')?.addEventListener('click', function() {
+            syncIframeToTextarea(editTemplateHtmlEditorFrame, editTemplateBodyInput);
+        });
+    }
+    
+    // Function to initialize iframe editor
+    function initIframeEditor(iframeElement, textareaElement) {
+        const iframeDoc = iframeElement.contentDocument || iframeElement.contentWindow.document;
+        
+        // Create base HTML structure
+        iframeDoc.open();
+        iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        padding: 10px;
+                        margin: 0;
+                        line-height: 1.6;
+                        min-height: 100%;
+                    }
+                    img { max-width: 100%; height: auto; }
+                    table { max-width: 100%; }
+                </style>
+            </head>
+            <body contenteditable="true">${textareaElement.value}</body>
+            </html>
+        `);
+        iframeDoc.close();
+        
+        // Add event listener to sync changes
+        iframeDoc.body.addEventListener('input', function() {
+            textareaElement.value = iframeDoc.body.innerHTML;
+        });
+    }
+    
+    // Function to sync iframe content to textarea
+    function syncIframeToTextarea(iframeElement, textareaElement) {
+        try {
+            const iframeDoc = iframeElement.contentDocument || iframeElement.contentWindow.document;
+            if (iframeDoc && iframeDoc.body) {
+                textareaElement.value = iframeDoc.body.innerHTML;
+            }
+        } catch (e) {
+            console.error('Error syncing from iframe to textarea:', e);
+        }
+    }
+    
+    // Import the common showNotification function from script.js if not already defined
+    if (typeof window.showNotification !== 'function') {
+        window.showNotification = function(title, message, type) {
+            // Create toast container if it doesn't exist
+            let toastContainer = document.querySelector('.toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                document.body.appendChild(toastContainer);
+            }
+            
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'success' ? 'bg-success text-white' : 'bg-danger text-white'}`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            toast.innerHTML = `
+                <div class="toast-header ${type === 'success' ? 'bg-success text-white' : 'bg-danger text-white'}">
+                    <strong class="me-auto">${title}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            `;
+            
+            // Add to container
+            toastContainer.appendChild(toast);
+            
+            // Initialize and show the toast
+            try {
+                const bsToast = new bootstrap.Toast(toast, {
+                    autohide: true,
+                    delay: 5000
+                });
+                bsToast.show();
+            } catch (e) {
+                console.error('Error showing toast:', e);
+                // Fallback for showing toast
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, 5000);
+            }
+        };
+    }
+    
+    // Edit template
+    const editButtons = document.querySelectorAll('.edit-template');
+    editButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const templateId = this.getAttribute('data-template-id');
+            const editForm = document.getElementById('edit-template-form');
+            
+            // Update form action
+            editForm.action = `/templates/${templateId}/edit`;
+            
+            // Fetch template data
+            fetch(`/templates/${templateId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Populate form fields
+                    document.getElementById('edit_template_name').value = data.name || '';
+                    document.getElementById('edit_template_description').value = data.description || '';
+                    document.getElementById('edit_subject').value = data.subject || '';
+                    document.getElementById('edit-template-body-input').value = data.body || '';
+                    
+                    // Also update the visual editor if present
+                    if (editTemplateHtmlEditor) {
+                        editTemplateHtmlEditor.innerHTML = data.body || '';
+                    }
+                    
+                    // Show modal
+                    const editModal = new bootstrap.Modal(document.getElementById('editTemplateModal'));
+                    editModal.show();
+                })
+                .catch(error => {
+                    console.error('Error fetching template:', error);
+                });
+        });
+    });
+    
+    // Delete template
+    const deleteButtons = document.querySelectorAll('.delete-template');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const templateId = this.getAttribute('data-template-id');
+            const templateName = this.getAttribute('data-template-name');
+            
+            // Update modal content
+            document.getElementById('delete-template-name').textContent = templateName;
+            
+            // Set up confirm button action
+            document.getElementById('confirm-delete-template').onclick = function() {
+                // Send delete request
+                fetch(`/templates/${templateId}/delete`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Hide modal
+                        const deleteModal = bootstrap.Modal.getInstance(document.getElementById('deleteTemplateModal'));
+                        deleteModal.hide();
+                        
+                        // Show success notification
+                        showNotification('Success', 'Template deleted successfully', 'success');
+                        
+                        // Reload page after short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting template:', error);
+                    showNotification('Error', 'Failed to delete template', 'error');
+                });
+            };
+            
+            // Show modal
+            const deleteModal = new bootstrap.Modal(document.getElementById('deleteTemplateModal'));
+            deleteModal.show();
+        });
+    });
+});
+</script>
+{% endblock %}

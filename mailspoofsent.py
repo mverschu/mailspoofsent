@@ -27,9 +27,11 @@ app.config['LOG_FILE'] = 'log.json'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['DRAFTS_FOLDER'] = 'drafts'
 app.config['CAMPAIGNS_FOLDER'] = 'campaigns'
+app.config['TEMPLATES_FOLDER'] = 'templates_catalog'  # New folder for email templates
 
 # Create required directories if they don't exist
-for folder in [app.config['UPLOAD_FOLDER'], app.config['DRAFTS_FOLDER'], app.config['CAMPAIGNS_FOLDER']]:
+for folder in [app.config['UPLOAD_FOLDER'], app.config['DRAFTS_FOLDER'], 
+               app.config['CAMPAIGNS_FOLDER'], app.config['TEMPLATES_FOLDER']]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -282,7 +284,20 @@ def format_timestamp(timestamp):
 def home():
     """Main page to send individual emails"""
     log_data = load_log_data()
-    return render_template('index.html', log_data=log_data)
+    
+    # Get templates for dropdown
+    templates = get_all_templates()
+    
+    # Get drafts for dropdown
+    drafts = [f.replace('.json', '') for f in os.listdir(app.config['DRAFTS_FOLDER']) 
+              if f.endswith('.json')]
+    
+    # Current timestamp for draft ID
+    current_time = time.time()
+    now_timestamp = int(current_time * 1000)
+    
+    return render_template('index.html', log_data=log_data, templates=templates, 
+                          drafts=drafts, current_time=current_time, now_timestamp=now_timestamp)
 
 @app.route('/send-email', methods=['POST'])
 def send_email():
@@ -338,6 +353,113 @@ def log():
     """Return log data as JSON"""
     log_data = load_log_data()
     return jsonify({'log': log_data})
+
+# Template Management Routes
+@app.route('/templates', methods=['GET'])
+def manage_templates():
+    """Template management page"""
+    templates = get_all_templates()
+    return render_template('templates.html', templates=templates)
+
+@app.route('/templates/add', methods=['POST'])
+def add_template():
+    """Add a new template"""
+    template_data = {
+        'name': request.form['template_name'],
+        'description': request.form.get('template_description', ''),
+        'subject': request.form.get('subject', ''),
+        'body': request.form.get('body', ''),
+        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    
+    # Generate template ID based on timestamp
+    template_id = f"template_{int(time.time() * 1000)}"
+    
+    # Save template to file
+    template_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.json')
+    with open(template_path, 'w') as f:
+        json.dump(template_data, f, indent=4)
+    
+    # Handle HTML file upload if provided
+    html_file = request.files.get('html_body')
+    if html_file and html_file.filename:
+        html_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.html')
+        html_file.save(html_path)
+    
+    # Redirect based on request type
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'template_id': template_id})
+    return redirect(url_for('manage_templates'))
+
+@app.route('/templates/<template_id>', methods=['GET'])
+def get_template(template_id):
+    """Get template details"""
+    template_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.json')
+    html_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.html')
+    
+    if not os.path.exists(template_path):
+        return jsonify({'error': 'Template not found'}), 404
+    
+    with open(template_path, 'r') as f:
+        template_data = json.load(f)
+    
+    # Check if HTML file exists
+    if os.path.exists(html_path):
+        with open(html_path, 'r') as f:
+            template_data['html_body'] = f.read()
+    
+    return jsonify(template_data)
+
+@app.route('/templates/<template_id>/delete', methods=['POST'])
+def delete_template(template_id):
+    """Delete a template"""
+    template_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.json')
+    html_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.html')
+    
+    try:
+        if os.path.exists(template_path):
+            os.remove(template_path)
+        
+        if os.path.exists(html_path):
+            os.remove(html_path)
+            
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/templates/<template_id>/edit', methods=['POST'])
+def edit_template(template_id):
+    """Edit an existing template"""
+    template_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.json')
+    
+    if not os.path.exists(template_path):
+        return jsonify({'error': 'Template not found'}), 404
+    
+    # Load existing template
+    with open(template_path, 'r') as f:
+        template_data = json.load(f)
+    
+    # Update with new data
+    template_data['name'] = request.form['template_name']
+    template_data['description'] = request.form.get('template_description', '')
+    template_data['subject'] = request.form.get('subject', '')
+    template_data['body'] = request.form.get('body', '')
+    template_data['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Save updated template
+    with open(template_path, 'w') as f:
+        json.dump(template_data, f, indent=4)
+    
+    # Handle HTML file upload if provided
+    html_file = request.files.get('html_body')
+    if html_file and html_file.filename:
+        html_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.html')
+        html_file.save(html_path)
+    
+    # Redirect based on request type
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True})
+    return redirect(url_for('manage_templates'))
 
 @app.route('/drafts', methods=['GET', 'POST'])
 def manage_drafts():
@@ -488,6 +610,24 @@ def load_log_data():
             return []
     return []
 
+def get_all_templates():
+    """Get all templates from the templates folder"""
+    templates = []
+    template_files = [f for f in os.listdir(app.config['TEMPLATES_FOLDER']) if f.endswith('.json')]
+    
+    for template_file in template_files:
+        template_id = template_file.replace('.json', '')
+        try:
+            with open(os.path.join(app.config['TEMPLATES_FOLDER'], template_file), 'r') as f:
+                template_data = json.load(f)
+                template_data['id'] = template_id
+                templates.append(template_data)
+        except:
+            continue
+    
+    # Sort templates by name
+    return sorted(templates, key=lambda x: x['name'].lower())
+
 def execute_campaign(campaign_id, campaign_data):
     """Execute all emails in a campaign"""
     for draft_id in campaign_data['draft_ids']:
@@ -545,8 +685,52 @@ def execute_campaign(campaign_id, campaign_data):
             
             socketio.emit('log_update', log_entry)
 
+# Add example templates if template folder is empty
+def add_example_templates():
+    """Add example templates if the templates folder is empty"""
+    if not os.listdir(app.config['TEMPLATES_FOLDER']):
+        print("Adding example templates...")
+        
+        # Example 1: Password Reset Request
+        password_reset = {
+            "name": "Password Reset Request",
+            "description": "Fake password reset request template for phishing tests",
+            "subject": "URGENT: Your Account Password Reset Request",
+            "body": "<html><head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}a{color:#0066cc}a.button{display:inline-block;padding:10px 20px;background-color:#0066cc;color:white;text-decoration:none;border-radius:4px;font-weight:bold}.header{padding:20px;background-color:#f8f8f8;border-bottom:1px solid #ddd}.footer{margin-top:40px;padding:20px;background-color:#f8f8f8;border-top:1px solid #ddd;font-size:12px;color:#666}.logo{max-height:50px}.container{max-width:600px;margin:0 auto;padding:20px}</style></head><body><div class='container'><div class='header'><img src='https://via.placeholder.com/150x50' alt='Company Logo' class='logo'></div><h2>Password Reset Request</h2><p>Dear Valued Customer,</p><p>We've received a request to reset your password. If you did not request this change, please ignore this email and your account will remain secure.</p><p>To reset your password, please click on the button below:</p><p style='text-align:center;margin:30px 0'><a href='https://account-verification.example.com/reset?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' class='button'>Reset Password</a></p><p>This link will expire in 24 hours for security reasons.</p><p>If the button above doesn't work, please copy and paste the following URL into your browser:</p><p><a href='https://account-verification.example.com/reset?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'>https://account-verification.example.com/reset?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9</a></p><p>If you didn't request a password reset, please contact our security team immediately at security@example.com.</p><p>Regards,<br>The Security Team</p><div class='footer'><p>This email was sent to you as a registered user of our service. Please do not reply to this message; it was sent from an unmonitored email address.</p><p>&copy; 2025 Example Company. All rights reserved.</p></div></div></body></html>",
+            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        # Example 2: IT Security Update
+        it_security = {
+            "name": "IT Security Update Required",
+            "description": "Fake IT security update notification template for phishing tests",
+            "subject": "IMPORTANT: Security Update Required for Your Corporate Account",
+            "body": "<html><head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}a{color:#0066cc}a.button{display:inline-block;padding:10px 20px;background-color:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold}.header{padding:20px;background-color:#f8f8f8;border-bottom:1px solid #ddd}.footer{margin-top:40px;padding:20px;background-color:#f8f8f8;border-top:1px solid #ddd;font-size:12px;color:#666}.logo{max-height:50px}.container{max-width:600px;margin:0 auto;padding:20px}.alert{background-color:#fff3cd;border:1px solid #ffeeba;padding:15px;margin:20px 0;border-radius:4px;color:#856404}</style></head><body><div class='container'><div class='header'><img src='https://via.placeholder.com/150x50' alt='Company Logo' class='logo'></div><h2>Important Security Update Required</h2><div class='alert'><strong>Security Notice:</strong> Our systems have detected that your account security needs to be updated immediately.</div><p>Dear Team Member,</p><p>The IT Security Department has identified that your corporate account requires an urgent security update to protect against recent cyber threats targeting our organization.</p><p><strong>Action Required:</strong> Please authenticate and update your account security settings by clicking the secure link below:</p><p style='text-align:center;margin:30px 0'><a href='https://security-verification.example.com/update?employee=user123' class='button'>Update Security Settings</a></p><p>This security update includes:</p><ul><li>Enhanced password protection</li><li>Multi-factor authentication reconfiguration</li><li>Security question updates</li><li>Device verification</li></ul><p><strong>DEADLINE:</strong> Please complete this update within 24 hours to maintain access to company resources.</p><p>If you have any questions or need assistance, please contact the IT Help Desk at helpdesk@example.com or ext. 5555.</p><p>Thank you for your prompt attention to this security matter.</p><p>Regards,<br>IT Security Department</p><div class='footer'><p>This is an automated system email. Please do not reply to this message.</p><p>&copy; 2025 Example Corporation. All rights reserved.</p><p><small>IT-SEC-2025-05-17-01</small></p></div></div></body></html>",
+            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        # Save the example templates
+        template1_id = f"template_{int(time.time() * 1000)}"
+        template2_id = f"template_{int(time.time() * 1000) + 1}"
+        
+        with open(os.path.join(app.config['TEMPLATES_FOLDER'], f'{template1_id}.json'), 'w') as f:
+            json.dump(password_reset, f, indent=4)
+            
+        with open(os.path.join(app.config['TEMPLATES_FOLDER'], f'{template2_id}.json'), 'w') as f:
+            json.dump(it_security, f, indent=4)
+
 def main():
     """Main function to handle both CLI and web server modes"""
+    # Check for --web flag
+    if '--web' in sys.argv:
+        # Add example templates if needed
+        add_example_templates()
+        
+        print("Starting the web server...")
+        print("You can access the web interface at: http://localhost:80")
+        print("Press Ctrl+C to stop the web server.")
+        socketio.run(app, debug=True, host='0.0.0.0', port=80)
+        return
     # Check for --web flag
     if '--web' in sys.argv:
         print("Starting the web server...")

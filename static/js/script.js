@@ -35,17 +35,20 @@ document.addEventListener('DOMContentLoaded', function() {
         let toastContainer = document.querySelector('.toast-container');
         if (!toastContainer) {
             toastContainer = document.createElement('div');
-            toastContainer.className = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
             document.body.appendChild(toastContainer);
         }
         
         // Create toast element
         const toast = document.createElement('div');
-        toast.className = `custom-toast ${type}`;
+        toast.className = `toast ${type === 'success' ? 'bg-success text-white' : 'bg-danger text-white'}`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
         toast.innerHTML = `
-            <div class="toast-header bg-${type === 'success' ? 'success' : 'danger'} text-white">
+            <div class="toast-header ${type === 'success' ? 'bg-success text-white' : 'bg-danger text-white'}">
                 <strong class="me-auto">${title}</strong>
-                <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
             <div class="toast-body">
                 ${message}
@@ -55,18 +58,64 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add to container
         toastContainer.appendChild(toast);
         
-        // Show toast
-        setTimeout(() => {
-            toast.classList.add('show');
-        }, 100);
+        // Initialize and show the toast
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 5000
+        });
+        bsToast.show();
         
-        // Auto hide after 5 seconds
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => {
-                toast.remove();
-            }, 300);
-        }, 5000);
+        // Remove the toast after it's hidden
+        toast.addEventListener('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    };
+    
+    // Modal helper functions
+    window.showModal = function(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement) return;
+        
+        try {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        } catch (error) {
+            console.error('Error showing modal:', error);
+            // Fallback manual approach
+            modalElement.classList.add('show');
+            modalElement.style.display = 'block';
+            document.body.classList.add('modal-open');
+            
+            // Add backdrop
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop fade show';
+            document.body.appendChild(backdrop);
+        }
+    };
+    
+    window.hideModal = function(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement) return;
+        
+        try {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.hide();
+            } else {
+                // Fallback manual approach
+                modalElement.classList.remove('show');
+                modalElement.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                document.querySelector('.modal-backdrop')?.remove();
+            }
+        } catch (error) {
+            console.error('Error hiding modal:', error);
+            // Fallback manual approach
+            modalElement.classList.remove('show');
+            modalElement.style.display = 'none';
+            document.body.classList.remove('modal-open');
+            document.querySelector('.modal-backdrop')?.remove();
+        }
     };
     
     // Save draft functionality
@@ -83,11 +132,43 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => {
                 if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Failed to save draft');
+                }
+            })
+            .then(data => {
+                if (data.success) {
                     showNotification('Success', 'Draft saved successfully!', 'success');
+                    
+                    // Update draft ID
+                    document.getElementById('draft_id').value = data.draft_id;
+                    
+                    // Add to dropdown if needed
+                    const draftSelect = document.getElementById('draft_select');
+                    if (draftSelect) {
+                        let exists = false;
+                        for (let i = 0; i < draftSelect.options.length; i++) {
+                            if (draftSelect.options[i].value === data.draft_id) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!exists) {
+                            const option = document.createElement('option');
+                            option.value = data.draft_id;
+                            option.text = `Draft (Just now)`;
+                            draftSelect.appendChild(option);
+                            draftSelect.value = data.draft_id;
+                        }
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to save draft');
                 }
             })
             .catch(error => {
-                showNotification('Error', 'Failed to save draft.', 'error');
+                showNotification('Error', error.message || 'Failed to save draft.', 'error');
                 console.error('Error:', error);
             });
         });
@@ -98,38 +179,226 @@ document.addEventListener('DOMContentLoaded', function() {
         return 'draft_' + Date.now();
     }
     
-    // Load draft functionality
-    const draftItems = document.querySelectorAll('.draft-item');
-    draftItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const draftId = this.getAttribute('data-draft-id');
+    // Draft selection
+    const draftSelect = document.getElementById('draft_select');
+    if (draftSelect) {
+        draftSelect.addEventListener('change', function() {
+            const draftId = this.value;
+            if (!draftId) return;
+            
             fetch(`/draft/${draftId}`)
                 .then(response => response.json())
                 .then(data => {
                     // Fill the form with draft data
-                    document.querySelector('[name="mail_from"]').value = data.mail_from;
-                    document.querySelector('[name="mail_to"]').value = data.mail_to;
-                    document.querySelector('[name="mail_envelope"]').value = data.mail_envelope;
-                    document.querySelector('[name="subject"]').value = data.subject;
-                    document.querySelector('[name="body"]').value = data.body;
-                    document.querySelector('[name="spoof_domain"]').value = data.spoof_domain;
+                    document.querySelector('[name="mail_from"]').value = data.mail_from || '';
+                    document.querySelector('[name="mail_to"]').value = data.mail_to || '';
+                    document.querySelector('[name="mail_envelope"]').value = data.mail_envelope || '';
+                    document.querySelector('[name="subject"]').value = data.subject || '';
+                    document.querySelector('[name="body"]').value = data.body || '';
+                    document.querySelector('[name="spoof_domain"]').value = data.spoof_domain || '';
+                    document.querySelector('[name="bcc"]').value = data.bcc || '';
+                    document.getElementById('draft_id').value = draftId;
                     
-                    showNotification('Success', 'Draft loaded successfully!', 'success');
+                    // Update iframe if it's active
+                    const htmlEditorFrame = document.getElementById('html-editor-frame');
+                    if (htmlEditorFrame && document.getElementById('visual-body').classList.contains('show')) {
+                        try {
+                            const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                            
+                            // Create base HTML structure with content
+                            iframeDoc.open();
+                            iframeDoc.write(`
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                    <meta charset="UTF-8">
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                    <style>
+                                        body {
+                                            font-family: Arial, sans-serif;
+                                            padding: 10px;
+                                            margin: 0;
+                                            line-height: 1.6;
+                                        }
+                                        img { max-width: 100%; height: auto; }
+                                        table { max-width: 100%; }
+                                    </style>
+                                </head>
+                                <body contenteditable="true">${data.body || ''}</body>
+                                </html>
+                            `);
+                            iframeDoc.close();
+                            
+                            // Add event listener to sync changes
+                            iframeDoc.body.addEventListener('input', function() {
+                                document.querySelector('[name="body"]').value = iframeDoc.body.innerHTML;
+                            });
+                        } catch (e) {
+                            console.error('Error updating iframe:', e);
+                        }
+                    }
+                    
                 })
                 .catch(error => {
-                    showNotification('Error', 'Failed to load draft.', 'error');
+                    showNotification('Error', 'Failed to load draft', 'error');
                     console.error('Error:', error);
                 });
         });
-    });
+    }
     
-    // HTML editor integration (if exists)
-    const htmlEditor = document.getElementById('html-editor');
-    if (htmlEditor) {
-        // Simple logic to sync content with hidden textarea
-        const bodyInput = document.getElementById('body-input');
-        htmlEditor.addEventListener('input', function() {
-            bodyInput.value = this.innerHTML;
+    // Template selection
+    const templateSelect = document.getElementById('template_select');
+    if (templateSelect) {
+        templateSelect.addEventListener('change', function() {
+            const templateId = this.value;
+            if (!templateId) return;
+            
+            fetch(`/templates/${templateId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Fill the form with template data
+                    document.querySelector('[name="subject"]').value = data.subject || '';
+                    document.querySelector('[name="body"]').value = data.body || '';
+                    
+                    // Update iframe if it's active
+                    const htmlEditorFrame = document.getElementById('html-editor-frame');
+                    if (htmlEditorFrame && document.getElementById('visual-body').classList.contains('show')) {
+                        try {
+                            const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                            
+                            // Create base HTML structure with content
+                            iframeDoc.open();
+                            iframeDoc.write(`
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                    <meta charset="UTF-8">
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                    <style>
+                                        body {
+                                            font-family: Arial, sans-serif;
+                                            padding: 10px;
+                                            margin: 0;
+                                            line-height: 1.6;
+                                        }
+                                        img { max-width: 100%; height: auto; }
+                                        table { max-width: 100%; }
+                                    </style>
+                                </head>
+                                <body contenteditable="true">${data.body || ''}</body>
+                                </html>
+                            `);
+                            iframeDoc.close();
+                            
+                            // Add event listener to sync changes
+                            iframeDoc.body.addEventListener('input', function() {
+                                document.querySelector('[name="body"]').value = iframeDoc.body.innerHTML;
+                            });
+                        } catch (e) {
+                            console.error('Error updating iframe:', e);
+                        }
+                    }
+                    
+                    showNotification('Success', `Template "${data.name}" loaded successfully!`, 'success');
+                })
+                .catch(error => {
+                    showNotification('Error', 'Failed to load template', 'error');
+                    console.error('Error:', error);
+                });
+        });
+        
+        // Auto-load template if specified in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const templateId = urlParams.get('template_id');
+        if (templateId) {
+            templateSelect.value = templateId;
+            templateSelect.dispatchEvent(new Event('change'));
+        }
+    }
+    
+    // Visual editor iframe integration
+    const visualTab = document.getElementById('visual-tab');
+    const htmlEditorFrame = document.getElementById('html-editor-frame');
+    const bodyInput = document.querySelector('[name="body"]');
+    
+    if (visualTab && htmlEditorFrame && bodyInput) {
+        visualTab.addEventListener('click', function() {
+            try {
+                const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                
+                // Create base HTML structure with content
+                iframeDoc.open();
+                iframeDoc.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                padding: 10px;
+                                margin: 0;
+                                line-height: 1.6;
+                                min-height: 100%;
+                            }
+                            img { max-width: 100%; height: auto; }
+                            table { max-width: 100%; }
+                        </style>
+                    </head>
+                    <body contenteditable="true">${bodyInput.value}</body>
+                    </html>
+                `);
+                iframeDoc.close();
+                
+                // Add event listener to sync changes
+                iframeDoc.body.addEventListener('input', function() {
+                    bodyInput.value = iframeDoc.body.innerHTML;
+                });
+            } catch (e) {
+                console.error('Error initializing iframe editor:', e);
+            }
+        });
+        
+        // Sync from iframe to textarea when switching back to text tab
+        document.getElementById('text-tab')?.addEventListener('click', function() {
+            try {
+                const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                if (iframeDoc && iframeDoc.body) {
+                    bodyInput.value = iframeDoc.body.innerHTML;
+                }
+            } catch (e) {
+                console.error('Error syncing from iframe to textarea:', e);
+            }
+        });
+    }
+    
+    // Clear form button
+    const clearFormBtn = document.getElementById('clear-form-btn');
+    if (clearFormBtn) {
+        clearFormBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear the form?')) {
+                document.getElementById('email-form').reset();
+                
+                // Reset selects
+                if (templateSelect) templateSelect.value = '';
+                if (draftSelect) draftSelect.value = '';
+                
+                // Generate new draft ID
+                document.getElementById('draft_id').value = generateDraftId();
+                
+                // Reset iframe if active
+                if (htmlEditorFrame && document.getElementById('visual-body').classList.contains('show')) {
+                    try {
+                        const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                        iframeDoc.body.innerHTML = '';
+                    } catch (e) {
+                        console.error('Error clearing iframe:', e);
+                    }
+                }
+                
+                showNotification('Info', 'Form cleared', 'success');
+            }
         });
     }
 });
