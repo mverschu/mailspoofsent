@@ -1,6 +1,6 @@
 # Mailspoofsent
 
-Mailspoofsent is a Bash script that sends an email using the smtp.mailfrom and header.from addresses specified by the user. It also changes some configuration values that are required to spoof email bypassing spam filters.
+Mailspoofsent is a Python script that sends an email using the smtp.mailfrom and header.from addresses specified by the user. It also changes some configuration values that are required to spoof email bypassing spam filters.
 
 The tool currently delivers spoofed mails successfully to:
 
@@ -60,7 +60,7 @@ Options:
 ## Web UI
 The new version of MailSpoofSent offers users to use a Web UI. This is currently under development to be improved.
 
-![image](https://github.com/user-attachments/assets/c5e63e84-9157-43aa-af4b-844b825fa7ef)
+![image](https://github.com/user-attachments/assets/57499a28-d6da-46bd-80bf-7102135ab854)
 
 ## Explanation
 
