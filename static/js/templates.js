@@ -498,7 +498,7 @@ function loadTemplateForEditing(templateId) {
     if (!editForm) return;
     
     // Update form action
-    editForm.action = `/templates/${templateId}/edit`;
+        const url = templateId ? `/templates/${templateId}/edit` : '/templates/add';
     
     // Fetch template data
     fetch(`/templates/${templateId}`)

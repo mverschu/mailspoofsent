@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Mailbox Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-inbox me-2"></i> Mailbox Management
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">Add New Mailbox</h5>
+                <form id="add-mailbox-form" class="mb-4">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Mailbox Name</label>
+                            <input type="text" class="form-control" id="name" name="name" placeholder="e.g., Marketing Mailbox" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="username" class="form-label">Username (Email Address)</label>
+                            <input type="email" class="form-control" id="username" name="username" placeholder="user@example.com" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="smtp_server" class="form-label">SMTP Server</label>
+                            <input type="text" class="form-control" id="smtp_server" name="smtp_server" placeholder="smtp.example.com" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="smtp_port" class="form-label">SMTP Port</label>
+                            <input type="number" class="form-control" id="smtp_port" name="smtp_port" placeholder="587" value="587" required>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="use_tls" name="use_tls">
+                                <label class="form-check-label" for="use_tls">Use TLS/SSL</label>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle me-2"></i> Add Mailbox</button>
+                </form>
+
+                <h5 class="card-title mt-5">Configured Mailboxes</h5>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>SMTP Server</th>
+                                <th>Port</th>
+                                <th>TLS/SSL</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mailboxes-table-body">
+                            {% for mailbox in mailboxes %}
+                            <tr id="mailbox-{{ mailbox.id }}">
+                                <td>{{ mailbox.name }}</td>
+                                <td>{{ mailbox.username }}</td>
+                                <td>{{ mailbox.smtp_server }}</td>
+                                <td>{{ mailbox.smtp_port }}</td>
+                                <td>{% if mailbox.use_tls %}<i class="fas fa-check-circle text-success"></i> Yes{% else %}<i class="fas fa-times-circle text-danger"></i> No{% endif %}</td>
+                                <td>
+                                    <button type="button" class="btn btn-info btn-sm me-2 test-mailbox-btn" data-id="{{ mailbox.id }}" data-username="{{ mailbox.username }}">
+                                        <i class="fas fa-paper-plane me-1"></i> Test
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-sm delete-mailbox-btn" data-id="{{ mailbox.id }}">
+                                        <i class="fas fa-trash-alt me-1"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Mailbox Modal -->
+<div class="modal fade" id="testMailboxModal" tabindex="-1" aria-labelledby="testMailboxModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="testMailboxModalLabel">Test Mailbox</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="test-mailbox-form">
+                    <input type="hidden" id="test-mailbox-id" name="mailbox_id">
+                    <div class="mb-3">
+                        <label for="test-recipient-email" class="form-label">Recipient Email for Test</label>
+                        <input type="email" class="form-control" id="test-recipient-email" name="test_recipient" placeholder="test@example.com" required>
+                    </div>
+                    <div class="alert alert-info" role="alert">
+                        A test email will be sent from <strong id="test-mailbox-username"></strong> to the specified recipient.
+                    </div>
+                    <button type="submit" class="btn btn-info"><i class="fas fa-paper-plane me-2"></i> Send Test Email</button>
+                </form>
+                <div id="test-result" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addMailboxForm = document.getElementById('add-mailbox-form');
+        const mailboxesTableBody = document.getElementById('mailboxes-table-body');
+        const testMailboxModal = new bootstrap.Modal(document.getElementById('testMailboxModal'));
+        const testMailboxForm = document.getElementById('test-mailbox-form');
+        const testResultDiv = document.getElementById('test-result');
+
+        const smtpPortInput = document.getElementById('smtp_port');
+        const useTlsCheckbox = document.getElementById('use_tls');
+
+        // Auto-check TLS for port 465
+        smtpPortInput.addEventListener('input', function() {
+            if (this.value === '465') {
+                useTlsCheckbox.checked = true;
+            }
+        });
+
+        // Handle Add Mailbox Form Submission
+        addMailboxForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(addMailboxForm);
+            
+            fetch('/mailboxes/add', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Success', 'Mailbox added successfully', 'success');
+                    addMailboxForm.reset();
+                    // Add new mailbox to the table
+                    const newRow = `
+                        <tr id="mailbox-${data.mailbox.id}">
+                            <td>${data.mailbox.name}</td>
+                            <td>${data.mailbox.username}</td>
+                            <td>${data.mailbox.smtp_server}</td>
+                            <td>${data.mailbox.smtp_port}</td>
+                            <td>${data.mailbox.use_tls ? '<i class="fas fa-check-circle text-success"></i> Yes' : '<i class="fas fa-times-circle text-danger"></i> No'}</td>
+                            <td>
+                                <button type="button" class="btn btn-info btn-sm me-2 test-mailbox-btn" data-id="${data.mailbox.id}" data-username="${data.mailbox.username}">
+                                    <i class="fas fa-paper-plane me-1"></i> Test
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm delete-mailbox-btn" data-id="${data.mailbox.id}">
+                                    <i class="fas fa-trash-alt me-1"></i> Delete
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    mailboxesTableBody.insertAdjacentHTML('beforeend', newRow);
+                    attachEventListenersToButtons(); // Re-attach listeners for new buttons
+                } else {
+                    showNotification('Error', data.message || 'Failed to add mailbox', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error adding mailbox:', error);
+                showNotification('Error', 'An error occurred while adding mailbox', 'error');
+            });
+        });
+
+        // Function to attach event listeners to dynamically created buttons
+        function attachEventListenersToButtons() {
+            // Handle Delete Mailbox Button Click
+            document.querySelectorAll('.delete-mailbox-btn').forEach(button => {
+                button.onclick = function() {
+                    const mailboxId = this.dataset.id;
+                    if (confirm('Are you sure you want to delete this mailbox?')) {
+                        fetch(`/mailboxes/delete/${mailboxId}`, {
+                            method: 'POST'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showNotification('Success', 'Mailbox deleted successfully', 'success');
+                                document.getElementById(`mailbox-${mailboxId}`).remove();
+                            } else {
+                                showNotification('Error', data.message || 'Failed to delete mailbox', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error deleting mailbox:', error);
+                            showNotification('Error', 'An error occurred while deleting mailbox', 'error');
+                        });
+                    }
+                };
+            });
+
+            // Handle Test Mailbox Button Click (opens modal)
+            document.querySelectorAll('.test-mailbox-btn').forEach(button => {
+                button.onclick = function() {
+                    const mailboxId = this.dataset.id;
+                    const mailboxUsername = this.dataset.username;
+                    document.getElementById('test-mailbox-id').value = mailboxId;
+                    document.getElementById('test-mailbox-username').textContent = mailboxUsername;
+                    testResultDiv.innerHTML = ''; // Clear previous test results
+                    testMailboxModal.show();
+                };
+            });
+        }
+
+        // Initial attachment of event listeners for existing buttons
+        attachEventListenersToButtons();
+
+        // Handle Test Mailbox Form Submission
+        testMailboxForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(testMailboxForm);
+            testResultDiv.innerHTML = '<div class="alert alert-info">Sending test email...</div>';
+
+            fetch('/mailboxes/test', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    testResultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                } else {
+                    testResultDiv.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error testing mailbox:', error);
+                testResultDiv.innerHTML = '<div class="alert alert-danger">An error occurred while sending test email.</div>';
+            });
+        });
+    });
+</script>
+{% endblock %}

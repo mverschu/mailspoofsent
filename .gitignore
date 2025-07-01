@@ -1,1 +1,4 @@
 /log.json
+/mailboxes.json
+__pycache__/
+.encryption_key

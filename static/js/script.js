@@ -122,10 +122,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const saveDraftBtn = document.getElementById('save-draft-btn');
     if (saveDraftBtn) {
         saveDraftBtn.addEventListener('click', function() {
+            // Show the modal
+            const draftNameModal = new bootstrap.Modal(document.getElementById('draftNameModal'));
+            draftNameModal.show();
+        });
+    }
+
+    const confirmSaveDraftBtn = document.getElementById('confirmSaveDraftBtn');
+    if (confirmSaveDraftBtn) {
+        confirmSaveDraftBtn.addEventListener('click', function() {
+            const draftNameInput = document.getElementById('draftNameInput');
+            const draftName = draftNameInput.value.trim();
+
+            if (!draftName) {
+                alert('Please enter a draft name.');
+                return;
+            }
+
             const form = document.getElementById('email-form');
             const formData = new FormData(form);
             formData.append('draft_id', generateDraftId());
-            
+            formData.append('draft_name', draftName); // Add the draft name
+
             fetch('/drafts', {
                 method: 'POST',
                 body: formData
@@ -158,17 +176,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (!exists) {
                             const option = document.createElement('option');
                             option.value = data.draft_id;
-                            option.text = `Draft (Just now)`;
+                            option.text = draftName; // Use the provided draft name
                             draftSelect.appendChild(option);
                             draftSelect.value = data.draft_id;
                         }
                     }
+                    // Hide the modal
+                    const draftNameModal = bootstrap.Modal.getInstance(document.getElementById('draftNameModal'));
+                    draftNameModal.hide();
+                    draftNameInput.value = ''; // Clear the input
                 } else {
                     throw new Error(data.error || 'Failed to save draft');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
+                alert('Error saving draft: ' + error.message);
             });
         });
     }
@@ -399,5 +422,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification('Info', 'Form cleared', 'success');
             }
         });
+    }
+
+    // Mailbox selection logic
+    const mailFromSelect = document.getElementById('mail_from');
+    const mailFromCustomInput = document.getElementById('mail_from_custom');
+
+    if (mailFromSelect && mailFromCustomInput) {
+        mailFromSelect.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                mailFromCustomInput.style.display = 'block';
+                mailFromCustomInput.setAttribute('name', 'mail_from'); // Use this for form submission
+                mailFromCustomInput.setAttribute('required', 'true');
+                this.removeAttribute('name'); // Remove name from select so it's not submitted
+                this.removeAttribute('required');
+            } else {
+                mailFromCustomInput.style.display = 'none';
+                mailFromCustomInput.removeAttribute('name');
+                mailFromCustomInput.removeAttribute('required');
+                this.setAttribute('name', 'mail_from'); // Use this for form submission
+                this.setAttribute('required', 'true');
+            }
+        });
+
+        // Initialize state based on current selection (if any)
+        if (mailFromSelect.value === 'custom') {
+            mailFromCustomInput.style.display = 'block';
+            mailFromCustomInput.setAttribute('name', 'mail_from');
+            mailFromCustomInput.setAttribute('required', 'true');
+            mailFromSelect.removeAttribute('name');
+            mailFromSelect.removeAttribute('required');
+        } else {
+            mailFromCustomInput.style.display = 'none';
+            mailFromCustomInput.removeAttribute('name');
+            mailFromCustomInput.removeAttribute('required');
+            mailFromSelect.setAttribute('name', 'mail_from');
+            mailFromSelect.setAttribute('required', 'true');
+        }
     }
 });

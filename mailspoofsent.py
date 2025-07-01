@@ -11,8 +11,14 @@ import sys
 import pwd
 import tempfile
 import re
+import smtplib
+import socket
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
+from scripts.encryption import encrypt_password, decrypt_password
 
 # Add scripts directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +34,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['DRAFTS_FOLDER'] = 'drafts'
 app.config['CAMPAIGNS_FOLDER'] = 'campaigns'
 app.config['TEMPLATES_FOLDER'] = 'templates_catalog'  # New folder for email templates
+app.config['MAILBOXES_FILE'] = 'mailboxes.json' # New file for mailboxes
 
 # Create required directories if they don't exist
 for folder in [app.config['UPLOAD_FOLDER'], app.config['DRAFTS_FOLDER'], 
@@ -119,6 +126,7 @@ def update_postfix_setting(setting, value):
     except Exception as e:
         print(f"Error updating postfix setting {setting}: {str(e)}")
         return False
+
 
 # Configure postfix for email spoofing - following the shell script approach
 def configure_postfix(spoof_domain, mail_envelope, mail_from):
@@ -257,6 +265,79 @@ def send_spoofed_email(mail_from, mail_to, mail_envelope, subject, body, spoof_d
         cleanup_postfix()
         return False, f"Error sending email: {str(e)}"
 
+
+
+# New function to send authenticated email
+def send_authenticated_email(sender_email, sender_password, smtp_server, smtp_port, use_tls, recipient_email, subject, body, html_body_path=None, base_path_for_images=None):
+    try:
+        decrypted_password = decrypt_password(sender_password)
+        msg = MIMEMultipart("alternative")
+        msg["From"] = sender_email
+        msg["To"] = recipient_email
+        msg["Subject"] = subject
+
+        html_content = None
+        if html_body_path and os.path.exists(html_body_path):
+            with open(html_body_path, 'r') as f:
+                html_content = f.read()
+            if base_path_for_images is None:
+                base_path_for_images = os.path.dirname(html_body_path)
+        elif body.strip().startswith('<html') or re.search(r'<[a-z][\s\S]*>', body):
+            html_content = body
+            if base_path_for_images is None:
+                base_path_for_images = app.config['UPLOAD_FOLDER'] # Default to upload folder for direct HTML input
+
+        if html_content:
+            # If we have HTML content, create both plain and HTML parts
+            text_part = MIMEText(body, "plain") # Use original body for plain text fallback
+            html_part = MIMEText(html_content, "html", _charset='UTF-8')
+            html_part.add_header('Content-Transfer-Encoding', '8bit')
+            msg.attach(text_part)
+            msg.attach(html_part)
+        else:
+            # If no HTML content, just attach the plain text body
+            text_part = MIMEText(body, "plain")
+            msg.attach(text_part)
+
+        server = None
+        try:
+            if smtp_port == 465:
+                # For SMTPS (implicit SSL/TLS on port 465)
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10, context=ssl.create_default_context())
+            elif use_tls:
+                # For STARTTLS (explicit TLS on other ports like 587)
+                server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+                server.starttls(context=ssl.create_default_context())
+            else:
+                # Plain SMTP without encryption
+                server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+            
+            server.set_debuglevel(1)  # Enable debug output for the connection
+        except socket.timeout:
+            return False, f"Connection timed out to {smtp_server}:{smtp_port}. Check server address and port, or network connectivity."
+        except ConnectionRefusedError:
+            return False, f"Connection refused by {smtp_server}:{smtp_port}. Ensure the SMTP server is running and accessible."
+        except ssl.SSLError as e:
+            return False, f"SSL/TLS Error: {str(e)}. This might indicate an issue with certificates or an incorrect SSL/TLS setting."
+        except smtplib.SMTPConnectError as e:
+            return False, f"SMTP Connection Error: {e.smtp_code} - {e.smtp_error.decode()}"
+        except Exception as e:
+            return False, f"Error establishing SMTP connection: {str(e)}"
+        
+        server.login(sender_email, decrypted_password)
+        server.sendmail(sender_email, recipient_email, msg.as_string())
+        server.quit()
+        
+        return True, "Email sent successfully via authenticated SMTP"
+    except smtplib.SMTPAuthenticationError as e:
+        return False, f"Authentication Error: {e.smtp_code} - {e.smtp_error.decode()}"
+    except smtplib.SMTPException as e:
+        return False, f"SMTP Error: {str(e)}"
+    except Exception as e:
+        import traceback
+        traceback.print_exc() # Print full traceback for unexpected errors
+        return False, f"An unexpected error occurred: {str(e)}"
+
 # Check sudo requirement
 @app.before_request
 def check_sudo():
@@ -289,15 +370,34 @@ def home():
     templates = get_all_templates()
     
     # Get drafts for dropdown
-    drafts = [f.replace('.json', '') for f in os.listdir(app.config['DRAFTS_FOLDER']) 
-              if f.endswith('.json')]
+    drafts = []
+    for f in os.listdir(app.config['DRAFTS_FOLDER']):
+        if f.endswith('.json'):
+            draft_id = f.replace('.json', '')
+            try:
+                with open(os.path.join(app.config['DRAFTS_FOLDER'], f), 'r') as draft_file:
+                    draft_content = json.load(draft_file)
+                    draft_name = draft_content.get('name', f'Draft {datetime.fromtimestamp(int(draft_id.split("_")[1]) / 1000).strftime('%Y-%m-%d %H:%M:%S')}')
+                    # If there's an HTML body path, read the content
+                    if draft_content.get('html_body_path') and os.path.exists(draft_content['html_body_path']):
+                        with open(draft_content['html_body_path'], 'r') as draft_html_file:
+                            draft_content['html_body_content'] = draft_html_file.read()
+                    drafts.append({'id': draft_id, 'name': draft_name, 'content': draft_content})
+            except Exception as e:
+                print(f"Error loading draft {draft_id}: {e}")
+                drafts.append({'id': draft_id, 'name': f'Draft {draft_id}'})
+    drafts = sorted(drafts, key=lambda x: x['name'].lower())
     
+    # Get mailboxes for dropdown
+    mailboxes = load_mailboxes()
+
     # Current timestamp for draft ID
     current_time = time.time()
     now_timestamp = int(current_time * 1000)
     
     return render_template('index.html', log_data=log_data, templates=templates, 
-                          drafts=drafts, current_time=current_time, now_timestamp=now_timestamp)
+                          drafts=drafts, current_time=current_time, now_timestamp=now_timestamp,
+                          mailboxes=mailboxes)
 
 @app.route('/send-email', methods=['POST'])
 def send_email():
@@ -309,6 +409,7 @@ def send_email():
     body = request.form.get('body', '')
     spoof_domain = request.form['spoof_domain']
     bcc = request.form.get('bcc', '')
+    mailbox_id = request.form.get('mailbox_id') # New: Get mailbox ID
     
     # Handle HTML body file upload
     html_file = request.files.get('html_body')
@@ -317,17 +418,39 @@ def send_email():
         html_body_path = os.path.join(app.config['UPLOAD_FOLDER'], html_file.filename)
         html_file.save(html_body_path)
     
-    # Send the email
-    success, message = send_spoofed_email(
-        mail_from=mail_from,
-        mail_to=mail_to,
-        mail_envelope=mail_envelope,
-        subject=subject,
-        body=body,
-        spoof_domain=spoof_domain,
-        bcc=bcc if bcc else None,
-        html_body_path=html_body_path if html_body_path else None
-    )
+    success = False
+    message = ""
+
+    if mailbox_id and mailbox_id != "none": # If a mailbox is selected
+        mailboxes = load_mailboxes()
+        mailbox = next((mb for mb in mailboxes if mb['id'] == mailbox_id), None)
+        if mailbox:
+            success, message = send_authenticated_email(
+                sender_email=mailbox['username'],
+                sender_password=decrypt_password(mailbox['password']),\
+                smtp_server=mailbox['smtp_server'],
+                smtp_port=mailbox['smtp_port'],
+                use_tls=mailbox['use_tls'],
+                recipient_email=mail_to,
+                subject=subject,
+                body=body,
+                html_body_path=html_body_path if html_body_path else None
+            )
+        else:
+            success = False
+            message = "Selected mailbox not found."
+    else: # Use spoofing method
+        # Send the email
+        success, message = send_spoofed_email(
+            mail_from=mail_from,
+            mail_to=mail_to,
+            mail_envelope=mail_envelope,
+            subject=subject,
+            body=body,
+            spoof_domain=spoof_domain,
+            bcc=bcc if bcc else None,
+            html_body_path=html_body_path if html_body_path else None
+        )
     
     # Log the email sending
     log_entry = {
@@ -386,10 +509,7 @@ def add_template():
         html_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.html')
         html_file.save(html_path)
     
-    # Redirect based on request type
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True, 'template_id': template_id})
-    return redirect(url_for('manage_templates'))
+    return jsonify({'success': True, 'template_id': template_id})
 
 @app.route('/templates/<template_id>', methods=['GET'])
 def get_template(template_id):
@@ -456,10 +576,7 @@ def edit_template(template_id):
         html_path = os.path.join(app.config['TEMPLATES_FOLDER'], f'{template_id}.html')
         html_file.save(html_path)
     
-    # Redirect based on request type
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True})
-    return redirect(url_for('manage_templates'))
+    return jsonify({'success': True})
 
 @app.route('/drafts', methods=['GET', 'POST'])
 def manage_drafts():
@@ -472,16 +589,28 @@ def manage_drafts():
             'subject': request.form['subject'],
             'body': request.form.get('body', ''),
             'spoof_domain': request.form['spoof_domain'],
-            'bcc': request.form.get('bcc', '')
+            'bcc': request.form.get('bcc', ''),
+            'name': request.form.get('draft_name', f'Draft {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}'), # New: Add draft name
+            'mailbox_id': request.form.get('mailbox_id', 'none'), # New: Add mailbox ID
+            'html_body_path': html_body_path if html_body_path else None # New: Add html_body_path
         }
         
         draft_id = request.form['draft_id']
         with open(os.path.join(app.config['DRAFTS_FOLDER'], f'{draft_id}.json'), 'w') as f:
             json.dump(draft_data, f, indent=4)
         
+        # Handle HTML body file upload for drafts
+        html_file = request.files.get('html_body')
+        if html_file and html_file.filename:
+            draft_html_path = os.path.join(app.config['DRAFTS_FOLDER'], f'{draft_id}.html')
+            html_file.save(draft_html_path)
+            draft_data['html_body_path'] = draft_html_path # Update path in draft_data
+            with open(os.path.join(app.config['DRAFTS_FOLDER'], f'{draft_id}.json'), 'w') as f:
+                json.dump(draft_data, f, indent=4)
+
         # If Ajax request
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': True, 'draft_id': draft_id})
+            return jsonify({'success': True, 'draft_id': draft_id, 'draft_name': draft_data['name']})
         
     # List all drafts
     drafts = [f for f in os.listdir(app.config['DRAFTS_FOLDER']) if f.endswith('.json')]
@@ -493,6 +622,12 @@ def get_draft(draft_id):
     try:
         with open(os.path.join(app.config['DRAFTS_FOLDER'], f'{draft_id}.json'), 'r') as f:
             draft_data = json.load(f)
+        
+        # If there's an HTML body path, read the content
+        if draft_data.get('html_body_path') and os.path.exists(draft_data['html_body_path']):
+            with open(draft_data['html_body_path'], 'r') as f:
+                draft_data['html_body_content'] = f.read()
+
         return jsonify(draft_data)
     except FileNotFoundError:
         return jsonify({'error': 'Draft not found'}), 404
@@ -599,6 +734,70 @@ def custom_static(filename):
     """Serve static files"""
     return send_from_directory('static', filename)
 
+# Mailbox Management Routes
+@app.route('/mailboxes', methods=['GET'])
+def manage_mailboxes():
+    """Mailbox management page"""
+    mailboxes = load_mailboxes()
+    return render_template('mailboxes.html', mailboxes=mailboxes)
+
+@app.route('/mailboxes/add', methods=['POST'])
+def add_mailbox():
+    """Add a new mailbox"""
+    mailboxes = load_mailboxes()
+    mailbox_data = {
+        'id': f"mailbox_{int(time.time() * 1000)}",
+        'name': request.form['name'],
+        'username': request.form['username'],
+        'password': encrypt_password(request.form['password']),
+        'smtp_server': request.form['smtp_server'],
+        'smtp_port': int(request.form['smtp_port']),
+        'use_tls': 'use_tls' in request.form,
+        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    mailboxes.append(mailbox_data)
+    save_mailboxes(mailboxes)
+    return jsonify({'success': True, 'mailbox': mailbox_data})
+
+@app.route('/mailboxes/delete/<mailbox_id>', methods=['POST'])
+def delete_mailbox(mailbox_id):
+    """Delete a mailbox"""
+    mailboxes = load_mailboxes()
+    initial_len = len(mailboxes)
+    mailboxes = [mb for mb in mailboxes if mb['id'] != mailbox_id]
+    if len(mailboxes) < initial_len:
+        save_mailboxes(mailboxes)
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': 'Mailbox not found'}), 404
+
+@app.route('/mailboxes/test', methods=['POST'])
+def test_mailbox():
+    """Send a test email using a configured mailbox"""
+    mailbox_id = request.form['mailbox_id']
+    test_recipient = request.form['test_recipient']
+    
+    mailboxes = load_mailboxes()
+    mailbox = next((mb for mb in mailboxes if mb['id'] == mailbox_id), None)
+    
+    if not mailbox:
+        return jsonify({'success': False, 'message': 'Mailbox not found'}), 404
+    
+    subject = "MailSpoofSent Test Email"
+    body = f"This is a test email sent from MailSpoofSent using mailbox: {mailbox['name']} ({mailbox['username']})."
+    
+    success, message = send_authenticated_email(
+        sender_email=mailbox['username'],
+        sender_password=decrypt_password(mailbox['password']),
+        smtp_server=mailbox['smtp_server'],
+        smtp_port=mailbox['smtp_port'],
+        use_tls=mailbox['use_tls'],
+        recipient_email=test_recipient,
+        subject=subject,
+        body=body
+    )
+    
+    return jsonify({'success': success, 'message': message})
+
 # Helper functions
 def load_log_data():
     """Load log data from file"""
@@ -628,6 +827,27 @@ def get_all_templates():
     # Sort templates by name
     return sorted(templates, key=lambda x: x['name'].lower())
 
+def load_mailboxes():
+    """Load mailboxes from file"""
+    if os.path.exists(app.config['MAILBOXES_FILE']):
+        try:
+            with open(app.config['MAILBOXES_FILE'], 'r') as f:
+                mailboxes = json.load(f)
+                for mailbox in mailboxes:
+                    if not mailbox.get('encrypted', False):
+                        mailbox['password'] = encrypt_password(mailbox['password'])
+                        mailbox['encrypted'] = True
+                save_mailboxes(mailboxes)
+                return mailboxes
+        except json.JSONDecodeError:
+            return []
+    return []
+
+def save_mailboxes(mailboxes):
+    """Save mailboxes to file"""
+    with open(app.config['MAILBOXES_FILE'], 'w') as f:
+        json.dump(mailboxes, f, indent=4)
+
 def execute_campaign(campaign_id, campaign_data):
     """Execute all emails in a campaign"""
     for draft_id in campaign_data['draft_ids']:
@@ -636,15 +856,36 @@ def execute_campaign(campaign_id, campaign_data):
                 draft_data = json.load(f)
             
             # Send the email using the draft data
-            success, message = send_spoofed_email(
-                mail_from=draft_data["mail_from"],
-                mail_to=draft_data["mail_to"],
-                mail_envelope=draft_data["mail_envelope"],
-                subject=draft_data["subject"],
-                body=draft_data["body"],
-                spoof_domain=draft_data["spoof_domain"],
-                bcc=draft_data.get("bcc") if draft_data.get("bcc") else None
-            )
+            mailbox_id = draft_data.get('mailbox_id')
+            if mailbox_id and mailbox_id != "none":
+                mailboxes = load_mailboxes()
+                mailbox = next((mb for mb in mailboxes if mb['id'] == mailbox_id), None)
+                if mailbox:
+                    success, message = send_authenticated_email(
+                        sender_email=mailbox['username'],
+                        sender_password=decrypt_password(mailbox['password']),
+                        smtp_server=mailbox['smtp_server'],
+                        smtp_port=mailbox['smtp_port'],
+                        use_tls=mailbox['use_tls'],
+                        recipient_email=draft_data["mail_to"],
+                        subject=draft_data["subject"],
+                        body=draft_data["body"],
+                        html_body_path=draft_data.get("html_body_path")
+                    )
+                else:
+                    success = False
+                    message = "Selected mailbox not found for campaign draft."
+            else:
+                success, message = send_spoofed_email(
+                    mail_from=draft_data["mail_from"],
+                    mail_to=draft_data["mail_to"],
+                    mail_envelope=draft_data["mail_envelope"],
+                    subject=draft_data["subject"],
+                    body=draft_data["body"],
+                    spoof_domain=draft_data["spoof_domain"],
+                    bcc=draft_data.get("bcc") if draft_data.get("bcc") else None,
+                    html_body_path=draft_data.get("html_body_path")
+                )
             
             # Log the email sending
             log_entry = {
@@ -685,60 +926,16 @@ def execute_campaign(campaign_id, campaign_data):
             
             socketio.emit('log_update', log_entry)
 
-# Add example templates if template folder is empty
-def add_example_templates():
-    """Add example templates if the templates folder is empty"""
-    if not os.listdir(app.config['TEMPLATES_FOLDER']):
-        print("Adding example templates...")
-        
-        # Example 1: Password Reset Request
-        password_reset = {
-            "name": "Password Reset Request",
-            "description": "Fake password reset request template for phishing tests",
-            "subject": "URGENT: Your Account Password Reset Request",
-            "body": "<html><head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}a{color:#0066cc}a.button{display:inline-block;padding:10px 20px;background-color:#0066cc;color:white;text-decoration:none;border-radius:4px;font-weight:bold}.header{padding:20px;background-color:#f8f8f8;border-bottom:1px solid #ddd}.footer{margin-top:40px;padding:20px;background-color:#f8f8f8;border-top:1px solid #ddd;font-size:12px;color:#666}.logo{max-height:50px}.container{max-width:600px;margin:0 auto;padding:20px}</style></head><body><div class='container'><div class='header'><img src='https://via.placeholder.com/150x50' alt='Company Logo' class='logo'></div><h2>Password Reset Request</h2><p>Dear Valued Customer,</p><p>We've received a request to reset your password. If you did not request this change, please ignore this email and your account will remain secure.</p><p>To reset your password, please click on the button below:</p><p style='text-align:center;margin:30px 0'><a href='https://account-verification.example.com/reset?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' class='button'>Reset Password</a></p><p>This link will expire in 24 hours for security reasons.</p><p>If the button above doesn't work, please copy and paste the following URL into your browser:</p><p><a href='https://account-verification.example.com/reset?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'>https://account-verification.example.com/reset?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9</a></p><p>If you didn't request a password reset, please contact our security team immediately at security@example.com.</p><p>Regards,<br>The Security Team</p><div class='footer'><p>This email was sent to you as a registered user of our service. Please do not reply to this message; it was sent from an unmonitored email address.</p><p>&copy; 2025 Example Company. All rights reserved.</p></div></div></body></html>",
-            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        # Example 2: IT Security Update
-        it_security = {
-            "name": "IT Security Update Required",
-            "description": "Fake IT security update notification template for phishing tests",
-            "subject": "IMPORTANT: Security Update Required for Your Corporate Account",
-            "body": "<html><head><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333}a{color:#0066cc}a.button{display:inline-block;padding:10px 20px;background-color:#28a745;color:white;text-decoration:none;border-radius:4px;font-weight:bold}.header{padding:20px;background-color:#f8f8f8;border-bottom:1px solid #ddd}.footer{margin-top:40px;padding:20px;background-color:#f8f8f8;border-top:1px solid #ddd;font-size:12px;color:#666}.logo{max-height:50px}.container{max-width:600px;margin:0 auto;padding:20px}.alert{background-color:#fff3cd;border:1px solid #ffeeba;padding:15px;margin:20px 0;border-radius:4px;color:#856404}</style></head><body><div class='container'><div class='header'><img src='https://via.placeholder.com/150x50' alt='Company Logo' class='logo'></div><h2>Important Security Update Required</h2><div class='alert'><strong>Security Notice:</strong> Our systems have detected that your account security needs to be updated immediately.</div><p>Dear Team Member,</p><p>The IT Security Department has identified that your corporate account requires an urgent security update to protect against recent cyber threats targeting our organization.</p><p><strong>Action Required:</strong> Please authenticate and update your account security settings by clicking the secure link below:</p><p style='text-align:center;margin:30px 0'><a href='https://security-verification.example.com/update?employee=user123' class='button'>Update Security Settings</a></p><p>This security update includes:</p><ul><li>Enhanced password protection</li><li>Multi-factor authentication reconfiguration</li><li>Security question updates</li><li>Device verification</li></ul><p><strong>DEADLINE:</strong> Please complete this update within 24 hours to maintain access to company resources.</p><p>If you have any questions or need assistance, please contact the IT Help Desk at helpdesk@example.com or ext. 5555.</p><p>Thank you for your prompt attention to this security matter.</p><p>Regards,<br>IT Security Department</p><div class='footer'><p>This is an automated system email. Please do not reply to this message.</p><p>&copy; 2025 Example Corporation. All rights reserved.</p><p><small>IT-SEC-2025-05-17-01</small></p></div></div></body></html>",
-            "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        # Save the example templates
-        template1_id = f"template_{int(time.time() * 1000)}"
-        template2_id = f"template_{int(time.time() * 1000) + 1}"
-        
-        with open(os.path.join(app.config['TEMPLATES_FOLDER'], f'{template1_id}.json'), 'w') as f:
-            json.dump(password_reset, f, indent=4)
-            
-        with open(os.path.join(app.config['TEMPLATES_FOLDER'], f'{template2_id}.json'), 'w') as f:
-            json.dump(it_security, f, indent=4)
-
 def main():
     """Main function to handle both CLI and web server modes"""
     # Check for --web flag
     if '--web' in sys.argv:
-        # Add example templates if needed
-        add_example_templates()
         
         print("Starting the web server...")
         print("You can access the web interface at: http://localhost:80")
         print("Press Ctrl+C to stop the web server.")
-        socketio.run(app, debug=True, host='0.0.0.0', port=80)
+        socketio.run(app, debug=False, host='0.0.0.0', port=80)
         return
-    # Check for --web flag
-    if '--web' in sys.argv:
-        print("Starting the web server...")
-        print("You can access the web interface at: http://localhost:80")
-        print("Press Ctrl+C to stop the web server.")
-        socketio.run(app, debug=True, host='0.0.0.0', port=80)
-        return
-    
     # If no args provided, show usage
     if len(sys.argv) == 1:
         print("Usage: ./mailspoofsent.py [--bcc bcc_address] --mail-from mail_from --mail-envelope mail_envelope --mail-to mail_to --subject subject --body body [--htmlbody body.html] --spoof-domain domain [--web]")
@@ -754,7 +951,7 @@ def main():
     parser = argparse.ArgumentParser(description='Send spoofed emails')
     parser.add_argument('--bcc', help='Specify a bcc address for the email')
     parser.add_argument('--mail-from', required=True, help='The mail address shown in mail client')
-    parser.add_argument('--mail-to', required=True, help='The recipient\'s email address')
+    parser.add_argument('--mail-to', required=True, help="The recipient's email address")
     parser.add_argument('--mail-envelope', required=True, help='The under control mail address to spoof e.g. SPF')
     parser.add_argument('--subject', required=True, help='The subject of the email')
     parser.add_argument('--body', required=True, help='The body of the email')

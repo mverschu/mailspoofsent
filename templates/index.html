@@ -33,8 +33,8 @@
                             <span class="input-group-text"><i class="fas fa-save"></i></span>
                             <select class="form-select" id="draft_select">
                                 <option value="">-- Select Draft --</option>
-                                {% for draft_id in drafts %}
-                                <option value="{{ draft_id }}">Draft {{ draft_id | format_timestamp }}</option>
+                                {% for draft in drafts %}
+                                <option value="{{ draft.id }}">{{ draft.name }}</option>
                                 {% endfor %}
                             </select>
                             <button type="button" id="save-draft-btn" class="btn btn-outline-primary">
@@ -51,21 +51,48 @@
                     <!-- From/Envelope Row - Reduced vertical margins -->
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
+                            <label for="mail_from_type" class="form-label">From Type</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <select class="form-select" id="mail_from_type" name="mail_from_type" required>
+                                    <option value="custom">Custom Address</option>
+                                    <option value="mailbox">Configured Mailbox</option>
+                                </select>
+                            </div>
+                            <small class="text-muted">Choose between a custom address or a configured mailbox.</small>
+                        </div>
+                        <div class="col-md-6" id="mailbox_selection_div" style="display: none;">
+                            <label for="mailbox_id" class="form-label">Select Mailbox</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-inbox"></i></span>
+                                <select class="form-select" id="mailbox_id" name="mailbox_id">
+                                    <option value="none">-- Select Mailbox --</option>
+                                    {% for mailbox in mailboxes %}
+                                    <option value="{{ mailbox.id }}">{{ mailbox.name }} ({{ mailbox.username }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <small class="text-muted">Select a pre-configured mailbox.</small>
+                        </div>
+                    </div>
+
+                    <!-- From Address (Displayed) and Envelope Sender Row -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6" id="mail_from_div">
                             <label for="mail_from" class="form-label">From Address (Displayed)</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-user"></i></span>
-                                <input type="text" class="form-control" id="mail_from" name="mail_from" placeholder="ceo@company.com" required>
+                                <input type="text" class="form-control" id="mail_from" name="mail_from" placeholder="e.g., ceo@company.com" required>
                             </div>
                             <small class="text-muted">The address shown in mail clients</small>
-                            <!-- Compact domain status will be inserted here by JavaScript -->
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-6" id="mail_envelope_div">
                             <label for="mail_envelope" class="form-label">Envelope Sender (SPF)</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                                <input type="text" class="form-control" id="mail_envelope" name="mail_envelope" placeholder="noreply@your-domain.com" required>
+                                <input type="text" class="form-control" id="mail_envelope" name="mail_envelope" placeholder="noreply@your-domain.com">
                             </div>
-                            <small class="text-muted">Domain must have valid SPF</small>
+                            <small class="text-muted">Domain must have valid SPF (only for custom address)</small>
                         </div>
                     </div>
 
@@ -89,14 +116,14 @@
                     </div>
 
                     <!-- Spoof Domain Row - Reduced bottom margin -->
-                    <div class="row mb-2">
+                    <div class="row mb-2" id="spoof_domain_div">
                         <div class="col-md-12">
                             <label for="spoof_domain" class="form-label">Spoof Domain</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-globe"></i></span>
                                 <input type="text" class="form-control" id="spoof_domain" name="spoof_domain" placeholder="attacker-domain.com" required>
                             </div>
-                            <small class="text-muted">Domain under attacker control</small>
+                            <small class="text-muted">Domain under attacker control (only for custom address)</small>
                         </div>
                     </div>
 
@@ -214,6 +241,28 @@
 </div>
 {% endblock %}
 
+<!-- Draft Name Modal -->
+<div class="modal fade" id="draftNameModal" tabindex="-1" aria-labelledby="draftNameModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="draftNameModalLabel">Save Draft</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="draftNameInput" class="form-label">Draft Name</label>
+                    <input type="text" class="form-control" id="draftNameInput" placeholder="Enter draft name" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmSaveDraftBtn">Save Draft</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block scripts %}
 <!-- Include the domain checker script -->
 <script src="{{ url_for('static', filename='js/domain_checker.js') }}"></script>
@@ -242,6 +291,42 @@
             console.error('Error fetching log data:', error);
         });
         
+    // Mail From Type selection functionality
+    const mailFromTypeSelect = document.getElementById('mail_from_type');
+    const mailFromDiv = document.getElementById('mail_from_div');
+    const mailEnvelopeDiv = document.getElementById('mail_envelope_div');
+    const spoofDomainDiv = document.getElementById('spoof_domain_div');
+    const mailboxSelectionDiv = document.getElementById('mailbox_selection_div');
+    const mailFromInput = document.getElementById('mail_from');
+    const mailEnvelopeInput = document.getElementById('mail_envelope');
+    const spoofDomainInput = document.getElementById('spoof_domain');
+
+    function toggleMailFromFields() {
+        if (mailFromTypeSelect.value === 'custom') {
+            mailFromDiv.style.display = 'block';
+            mailEnvelopeDiv.style.display = 'block';
+            spoofDomainDiv.style.display = 'block';
+            mailboxSelectionDiv.style.display = 'none';
+            mailFromInput.setAttribute('required', 'required');
+            mailEnvelopeInput.setAttribute('required', 'required');
+            spoofDomainInput.setAttribute('required', 'required');
+        } else {
+            mailFromDiv.style.display = 'none';
+            mailEnvelopeDiv.style.display = 'none';
+            spoofDomainDiv.style.display = 'none';
+            mailboxSelectionDiv.style.display = 'block';
+            mailFromInput.removeAttribute('required');
+            mailEnvelopeInput.removeAttribute('required');
+            spoofDomainInput.removeAttribute('required');
+        }
+    }
+
+    if (mailFromTypeSelect) {
+        mailFromTypeSelect.addEventListener('change', toggleMailFromFields);
+        // Initial call to set correct state on page load
+        toggleMailFromFields();
+    }
+
     // Template selection functionality
     const templateSelect = document.getElementById('template_select');
     if (templateSelect) {
@@ -251,7 +336,7 @@
             
             // Show loading indicator
             const bodyInput = document.getElementById('body-input');
-            const htmlEditor = document.getElementById('html-editor');
+            const htmlEditorFrame = document.getElementById('html-editor-frame');
             bodyInput.placeholder = 'Loading template...';
             
             // Fetch template data
@@ -266,24 +351,10 @@
                     bodyInput.value = bodyContent;
                     
                     // Update visual editor if available
-                    if (htmlEditor) {
-                        try {
-                            // Extract body content if it's a full HTML document
-                            if (bodyContent.includes('<html') && bodyContent.includes('<body')) {
-                                const tempDiv = document.createElement('div');
-                                tempDiv.innerHTML = bodyContent;
-                                const bodyElement = tempDiv.querySelector('body');
-                                if (bodyElement) {
-                                    htmlEditor.innerHTML = bodyElement.innerHTML;
-                                } else {
-                                    htmlEditor.innerHTML = bodyContent;
-                                }
-                            } else {
-                                htmlEditor.innerHTML = bodyContent;
-                            }
-                        } catch (e) {
-                            console.error('Error processing HTML:', e);
-                            htmlEditor.innerHTML = bodyContent;
+                    if (htmlEditorFrame) {
+                        const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                        if (iframeDoc && iframeDoc.body) {
+                            iframeDoc.body.innerHTML = bodyContent;
                         }
                     }
                     
@@ -316,19 +387,57 @@
                 .then(response => response.json())
                 .then(data => {
                     // Populate form fields
-                    document.getElementById('mail_from').value = data.mail_from || '';
                     document.getElementById('mail_to').value = data.mail_to || '';
-                    document.getElementById('mail_envelope').value = data.mail_envelope || '';
                     document.getElementById('subject').value = data.subject || '';
-                    document.getElementById('body-input').value = data.body || '';
-                    document.getElementById('spoof_domain').value = data.spoof_domain || '';
                     document.getElementById('bcc').value = data.bcc || '';
                     document.getElementById('draft_id').value = draftId;
-                    
-                    // Update visual editor if available
-                    const htmlEditor = document.getElementById('html-editor');
-                    if (htmlEditor) {
-                        htmlEditor.innerHTML = data.body || '';
+
+                    // Handle mail_from_type and related fields
+                    if (data.mailbox_id && data.mailbox_id !== 'none') {
+                        mailFromTypeSelect.value = 'mailbox';
+                        document.getElementById('mailbox_id').value = data.mailbox_id;
+                        // Set mail_from input to the mailbox username for display purposes
+                        const selectedMailboxOption = Array.from(document.getElementById('mailbox_id').options).find(option => option.value === data.mailbox_id);
+                        if (selectedMailboxOption) {
+                            mailFromInput.value = selectedMailboxOption.text.match(/\(([^)]+)\)/)[1]; // Extract username from option text
+                        }
+                    } else {
+                        mailFromTypeSelect.value = 'custom';
+                        mailFromInput.value = data.mail_from || '';
+                        mailEnvelopeInput.value = data.mail_envelope || '';
+                        spoofDomainInput.value = data.spoof_domain || '';
+                    }
+                    toggleMailFromFields(); // Update visibility based on loaded draft
+
+                    // Handle body content
+                    if (data.html_body_content) {
+                        document.getElementById('body-input').value = data.html_body_content;
+                        const htmlEditorFrame = document.getElementById('html-editor-frame');
+                        if (htmlEditorFrame) {
+                            const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                            if (iframeDoc && iframeDoc.body) {
+                                iframeDoc.body.innerHTML = data.html_body_content;
+                            }
+                        }
+                        // Switch to visual editor tab if HTML content is loaded
+                        const visualTabButton = document.getElementById('visual-tab');
+                        if (visualTabButton) {
+                            new bootstrap.Tab(visualTabButton).show();
+                        }
+                    } else {
+                        document.getElementById('body-input').value = data.body || '';
+                        const htmlEditorFrame = document.getElementById('html-editor-frame');
+                        if (htmlEditorFrame) {
+                            const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                            if (iframeDoc && iframeDoc.body) {
+                                iframeDoc.body.innerHTML = data.body || '';
+                            }
+                        }
+                        // Switch to text editor tab if plain text content is loaded
+                        const textTabButton = document.getElementById('text-tab');
+                        if (textTabButton) {
+                            new bootstrap.Tab(textTabButton).show();
+                        }
                     }
                 })
                 .catch(error => {
@@ -345,6 +454,13 @@
             const form = document.getElementById('email-form');
             const formData = new FormData(form);
             
+            // Add mailbox_id to formData if selected
+            if (mailFromTypeSelect.value === 'mailbox') {
+                formData.append('mailbox_id', document.getElementById('mailbox_id').value);
+            } else {
+                formData.append('mailbox_id', 'none'); // Explicitly set to none if custom
+            }
+
             fetch('/drafts', {
                 method: 'POST',
                 body: formData
@@ -367,7 +483,7 @@
                     if (!draftExists) {
                         const option = document.createElement('option');
                         option.value = draftId;
-                        option.text = `Draft (Just now)`;
+                        option.text = data.draft_name; // Use the name returned from the server
                         draftSelect.appendChild(option);
                     }
                 } else {
@@ -391,11 +507,18 @@
                 document.getElementById('draft_select').value = '';
                 
                 // Clear visual editor if available
-                const htmlEditor = document.getElementById('html-editor');
-                if (htmlEditor) {
-                    htmlEditor.innerHTML = '';
+                const htmlEditorFrame = document.getElementById('html-editor-frame');
+                if (htmlEditorFrame) {
+                    const iframeDoc = htmlEditorFrame.contentDocument || htmlEditorFrame.contentWindow.document;
+                    if (iframeDoc && iframeDoc.body) {
+                        iframeDoc.body.innerHTML = '';
+                    }
                 }
                 
+                // Reset mail from type to custom and toggle fields
+                mailFromTypeSelect.value = 'custom';
+                toggleMailFromFields();
+
                 showNotification('Info', 'Form cleared', 'success');
             }
         });
