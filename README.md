@@ -1,6 +1,6 @@
 # Mailspoofsent
 
-Mailspoofsent is a Python script that sends an email using the smtp.mailfrom and header.from addresses specified by the user. It also changes some configuration values that are required to spoof email bypassing spam filters.
+Mailspoofsent is a versatile email sending tool that allows for both spoofed and authenticated email campaigns. It provides a command-line interface for single email sending and a comprehensive web UI for managing templates, drafts, mailboxes, and large-scale campaigns.
 
 The tool currently delivers spoofed mails successfully to:
 
@@ -12,20 +12,34 @@ The tool currently delivers spoofed mails successfully to:
 - [ ] Google Personal
 - [ ] Hotmail Personal
 
-It is recommended to read the "Explanation" section.
+It is recommended to read the "Explanation" section for a deeper understanding of email spoofing techniques.
+
+## Features
+
+- **Email Spoofing:** Send emails with a custom `From` address, bypassing SPF and other spam filters.
+- **Authenticated Sending:** Configure and use your own SMTP mailboxes for legitimate, authenticated email sending.
+- **Web UI:** A user-friendly web interface to manage all aspects of your email campaigns.
+- **Template Management:** Create, edit, and manage email templates for reuse.
+- **Drafts:** Save and manage email drafts, including HTML content and attachments.
+- **Campaign Management:** Group drafts into campaigns and launch them with a single click.
+- **Real-time Logging:** View the status of sent emails in real-time through the web UI.
 
 ## Requirements
-*The install.sh script can be used to install all requirements.*
 
-- Postfix (when installing Postfix choose -> Internet Site -> Name doesn't matter)
-- Mailutils
-- Python3 (only for web UI)
-- Python3 PIP (only for web UI)
-- Flask (only for web UI)
+*The `install.sh` script can be used to install all requirements.*
+
+- **For Spoofing:**
+  - Postfix (when installing Postfix choose -> Internet Site -> Name doesn't matter)
+  - Mailutils
+- **For Web UI & Authenticated Sending:**
+  - Python3
+  - Python3 PIP
+  - Flask
+  - Flask-SocketIO
 
 ### Supplementary
 
-This part is not required, but it can be helpful for bypassing spam filters.
+This part is not required, but it can be helpful for bypassing spam filters when spoofing.
 
 - Public IP address -> Valid PTR record
 
@@ -36,14 +50,36 @@ Install on Linux:
 ```bash
 git clone https://github.com/mverschu/mailspoofsent
 cd mailspoofsent
-chmod +x mailspoofsent.sh
-./mailspoofsent
+chmod +x install.sh
+./install.sh
 ```
+
+## Usage
+
+### Command-Line Interface (CLI)
+
+For sending a single spoofed email:
+
+```bash
+sudo ./mailspoofsent.py [--bcc bcc_address] --mail-from from@example.com --mail-to to@example.com --mail-envelope envelope@example.com --subject "Your Subject" --body "Email body" --spoof-domain yourdomain.com
+```
+
+### Web UI
+
+For a more feature-rich experience, including authenticated sending, drafts, and campaigns, use the web UI.
+
+```bash
+sudo ./mailspoofsent.py --web
+```
+
+Navigate to `http://localhost:80` in your web browser to access the interface.
+
+![image](https://github.com/user-attachments/assets/57499a28-d6da-46bd-80bf-7102135ab854)
 
 ## Options
 
 ```
-Usage: ./mailspoofsent.sh [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--htmlbody body.html] --spoof-domain domain [--web]
+Usage: ./mailspoofsent.py [--bcc bcc_address] --mail-from mail_from --mail-to mail_to --mail-envelope mail_envelope --subject subject --body body [--htmlbody body.html] --spoof-domain domain [--web]
 
 Options:
   --bcc bcc_address   Specify a bcc address for the email
@@ -56,11 +92,6 @@ Options:
   --spoof-domain      The domain to spoof from under control of attacker
   --web               Start the MailSpoofSent Web UI
 ```
-
-## Web UI
-The new version of MailSpoofSent offers users to use a Web UI. This is currently under development to be improved.
-
-![image](https://github.com/user-attachments/assets/57499a28-d6da-46bd-80bf-7102135ab854)
 
 ## Explanation
 
