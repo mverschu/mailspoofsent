@@ -17,8 +17,23 @@ elif [ -x "$(command -v dnf)" ]; then
   dnf install -y postfix mailutils
 elif [ -x "$(command -v apt-get)" ]; then
   # Use apt-get to install postfix & mailutils
-  apt-get update
-  apt-get install -y postfix mailutils
+  #!/bin/bash
+
+# Update package lists
+apt-get update
+
+# Install Postfix and Mailutils
+apt-get install -y postfix mailutils
+
+# Install Python and Pip
+apt-get install -y python3 python3-pip
+
+# Install Python dependencies
+pip3 install -r requirements.txt
+
+# Make the main script executable
+chmod +x mailspoofsent.py
+
 else
   echo "Error: Package manager not found. Please install postfix and mailutils manually."
   exit 1
