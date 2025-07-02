@@ -16,6 +16,9 @@ import socket
 import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage
+import uuid
+import base64
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 from scripts.encryption import encrypt_password, decrypt_password
@@ -271,33 +274,101 @@ def send_spoofed_email(mail_from, mail_to, mail_envelope, subject, body, spoof_d
 def send_authenticated_email(sender_email, sender_password, smtp_server, smtp_port, use_tls, recipient_email, subject, body, html_body_path=None, base_path_for_images=None):
     try:
         decrypted_password = decrypt_password(sender_password)
-        msg = MIMEMultipart("alternative")
-        msg["From"] = sender_email
-        msg["To"] = recipient_email
-        msg["Subject"] = subject
 
         html_content = None
         if html_body_path and os.path.exists(html_body_path):
-            with open(html_body_path, 'r') as f:
+            with open(html_body_path, 'r', encoding='utf-8') as f:
                 html_content = f.read()
             if base_path_for_images is None:
                 base_path_for_images = os.path.dirname(html_body_path)
         elif body.strip().startswith('<html') or re.search(r'<[a-z][\s\S]*>', body):
             html_content = body
             if base_path_for_images is None:
-                base_path_for_images = app.config['UPLOAD_FOLDER'] # Default to upload folder for direct HTML input
+                base_path_for_images = app.config['UPLOAD_FOLDER']
 
+        images_to_embed = []
         if html_content:
-            # If we have HTML content, create both plain and HTML parts
-            text_part = MIMEText(body, "plain") # Use original body for plain text fallback
+            # Find all images to embed, including data URIs
+            for img_match in re.finditer(r"""<img[^>]+src=['"]([^'"]+)['"]""", html_content):
+                img_src = img_match.group(1)
+                cid = f'{uuid.uuid4()}@mailspoofsent'
+                
+                if img_src.startswith('data:image'):
+                    try:
+                        # Handle data URI
+                        header, encoded_data = img_src.split(',', 1)
+                        img_type = header.split(';')[0].split('/')[1]
+                        img_data = base64.b64decode(encoded_data)
+                        
+                        image = MIMEImage(img_data, _subtype=img_type)
+                        image.add_header('Content-ID', f'<{cid}>')
+                        image.add_header('Content-Disposition', 'inline')
+                        images_to_embed.append({'src': img_src, 'cid': cid, 'mime_image': image})
+                    except Exception as e:
+                        print(f"Error processing data URI image: {e}")
+
+                elif not img_src.startswith(('http://', 'https://')):
+                    # Handle local file path
+                    img_path = os.path.join(base_path_for_images, img_src)
+                    if os.path.exists(img_path):
+                        try:
+                            with open(img_path, 'rb') as img_file:
+                                img_data = img_file.read()
+                            
+                            img_type = os.path.splitext(img_path)[1].lower().strip('.')
+                            if img_type in ['png', 'jpeg', 'jpg', 'gif']:
+                                image = MIMEImage(img_data, _subtype=img_type)
+                                image.add_header('Content-ID', f'<{cid}>')
+                                image.add_header('Content-Disposition', 'inline', filename=os.path.basename(img_path))
+                                images_to_embed.append({'src': img_src, 'cid': cid, 'mime_image': image})
+                            else:
+                                print(f"Warning: Unsupported image type for {img_path}. Skipping embedding.")
+                        except Exception as e:
+                            print(f"Error preparing image for embedding {img_path}: {e}")
+                    else:
+                        print(f"Warning: Image file not found: {img_path}. Skipping embedding.")
+
+        if images_to_embed:
+            # If there are images, the main container is 'related'
+            msg = MIMEMultipart('related')
+            msg["From"] = sender_email
+            msg["To"] = recipient_email
+            msg["Subject"] = subject
+
+            # The first part of a 'related' message should be the 'alternative' part
+            msg_alternative = MIMEMultipart('alternative')
+            msg.attach(msg_alternative)
+
+            # Attach plain text part
+            text_part = MIMEText(body, "plain", _charset='UTF-8')
+            msg_alternative.attach(text_part)
+
+            # Replace image sources with CIDs in HTML
+            for img_info in images_to_embed:
+                html_content = html_content.replace(img_info['src'], f"cid:{img_info['cid']}")
+
+            # Attach HTML part
             html_part = MIMEText(html_content, "html", _charset='UTF-8')
-            html_part.add_header('Content-Transfer-Encoding', '8bit')
-            msg.attach(text_part)
-            msg.attach(html_part)
+            msg_alternative.attach(html_part)
+
+            # Attach images to the main 'related' message
+            for img_info in images_to_embed:
+                msg.attach(img_info['mime_image'])
         else:
-            # If no HTML content, just attach the plain text body
-            text_part = MIMEText(body, "plain")
+            # If no images, the main container is 'alternative'
+            msg = MIMEMultipart('alternative')
+            msg["From"] = sender_email
+            msg["To"] = recipient_email
+            msg["Subject"] = subject
+
+            # Attach plain text part
+            text_part = MIMEText(body, "plain", _charset='UTF-8')
             msg.attach(text_part)
+
+            # Attach HTML part if it exists
+            if html_content:
+                html_part = MIMEText(html_content, "html", _charset='UTF-8')
+                msg.attach(html_part)
 
         server = None
         try:
@@ -417,6 +488,11 @@ def send_email():
     if html_file and html_file.filename:
         html_body_path = os.path.join(app.config['UPLOAD_FOLDER'], html_file.filename)
         html_file.save(html_body_path)
+        base_path_for_images = app.config['UPLOAD_FOLDER']
+    elif body.strip().startswith('<html') or re.search(r'<[a-z][\s\S]*>', body):
+        base_path_for_images = app.config['UPLOAD_FOLDER']
+    else:
+        base_path_for_images = None
     
     success = False
     message = ""
@@ -434,7 +510,8 @@ def send_email():
                 recipient_email=mail_to,
                 subject=subject,
                 body=body,
-                html_body_path=html_body_path if html_body_path else None
+                html_body_path=html_body_path if html_body_path else None,
+                base_path_for_images=base_path_for_images
             )
         else:
             success = False
@@ -870,7 +947,8 @@ def execute_campaign(campaign_id, campaign_data):
                         recipient_email=draft_data["mail_to"],
                         subject=draft_data["subject"],
                         body=draft_data["body"],
-                        html_body_path=draft_data.get("html_body_path")
+                        html_body_path=draft_data.get("html_body_path"),
+                        base_path_for_images=os.path.dirname(draft_data["html_body_path"]) if draft_data.get("html_body_path") and os.path.exists(draft_data["html_body_path"]) else (app.config['UPLOAD_FOLDER'] if draft_data["body"].strip().startswith('<html') or re.search(r'<[a-z][\s\S]*>', draft_data["body"]) else None)
                     )
                 else:
                     success = False

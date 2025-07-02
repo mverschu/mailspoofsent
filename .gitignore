@@ -2,3 +2,4 @@
 /mailboxes.json
 __pycache__/
 .encryption_key
+drafts/
