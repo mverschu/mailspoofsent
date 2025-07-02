@@ -146,8 +146,8 @@ function checkDomainSecurity(emailAddress) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    mailFromSelect = document.getElementById('mail_from');
-    mailFromCustomInput = document.getElementById('mail_from_custom');
+    mailFromSelect = document.getElementById('mail_from_type');
+    mailFromCustomInput = document.getElementById('mail_from');
 
     // Create a compact status container near the input
     compactStatusContainer = document.createElement('div');
