@@ -17,6 +17,7 @@ import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
+from email.mime.application import MIMEApplication
 import uuid
 import base64
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
@@ -179,7 +180,7 @@ def cleanup_postfix():
         return False, f"Error cleaning up postfix configuration: {str(e)}"
 
 # Function to send email - following the shell script approach closely
-def send_spoofed_email(mail_from, mail_to, mail_envelope, subject, body, spoof_domain, bcc=None, html_body_path=None):
+def send_spoofed_email(mail_from, mail_to, mail_envelope, subject, body, spoof_domain, bcc=None, html_body_path=None, attachments=None):
     if not is_root():
         return False, "This function requires root privileges to run"
     
@@ -239,6 +240,11 @@ def send_spoofed_email(mail_from, mail_to, mail_envelope, subject, body, spoof_d
         if bcc:
             mail_cmd.extend(['-a', f'BCC: {bcc}'])
         
+        # Add attachments if specified
+        if attachments:
+            for attachment in attachments:
+                mail_cmd.extend([f'--attach={attachment}'])
+
         # Add destination email
         mail_cmd.append(mail_to)
         
@@ -271,7 +277,7 @@ def send_spoofed_email(mail_from, mail_to, mail_envelope, subject, body, spoof_d
 
 
 # New function to send authenticated email
-def send_authenticated_email(sender_email, sender_password, smtp_server, smtp_port, use_tls, recipient_email, subject, body, html_body_path=None, base_path_for_images=None):
+def send_authenticated_email(sender_email, sender_password, smtp_server, smtp_port, use_tls, recipient_email, subject, body, html_body_path=None, base_path_for_images=None, attachments=None):
     try:
         decrypted_password = decrypt_password(sender_password)
 
@@ -369,6 +375,17 @@ def send_authenticated_email(sender_email, sender_password, smtp_server, smtp_po
             if html_content:
                 html_part = MIMEText(html_content, "html", _charset='UTF-8')
                 msg.attach(html_part)
+
+        # Add attachments
+        if attachments:
+            for attachment_path in attachments:
+                try:
+                    with open(attachment_path, "rb") as attachment_file:
+                        part = MIMEApplication(attachment_file.read(), Name=os.path.basename(attachment_path))
+                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(attachment_path)}"'
+                    msg.attach(part)
+                except Exception as e:
+                    print(f"Error attaching file {attachment_path}: {e}")
 
         server = None
         try:
@@ -493,6 +510,15 @@ def send_email():
         base_path_for_images = app.config['UPLOAD_FOLDER']
     else:
         base_path_for_images = None
+
+    # Handle attachments
+    attachments = []
+    if 'attachments' in request.files:
+        for attachment_file in request.files.getlist('attachments'):
+            if attachment_file and attachment_file.filename:
+                attachment_path = os.path.join(app.config['UPLOAD_FOLDER'], attachment_file.filename)
+                attachment_file.save(attachment_path)
+                attachments.append(attachment_path)
     
     success = False
     message = ""
@@ -511,7 +537,8 @@ def send_email():
                 subject=subject,
                 body=body,
                 html_body_path=html_body_path if html_body_path else None,
-                base_path_for_images=base_path_for_images
+                base_path_for_images=base_path_for_images,
+                attachments=attachments
             )
         else:
             success = False
@@ -526,7 +553,8 @@ def send_email():
             body=body,
             spoof_domain=spoof_domain,
             bcc=bcc if bcc else None,
-            html_body_path=html_body_path if html_body_path else None
+            html_body_path=html_body_path if html_body_path else None,
+            attachments=attachments
         )
     
     # Log the email sending
