@@ -39,6 +39,7 @@ app.config['DRAFTS_FOLDER'] = 'drafts'
 app.config['CAMPAIGNS_FOLDER'] = 'campaigns'
 app.config['TEMPLATES_FOLDER'] = 'templates_catalog'  # New folder for email templates
 app.config['MAILBOXES_FILE'] = 'mailboxes.json' # New file for mailboxes
+app.config['USERS_FILE'] = 'users.json'
 
 # Create required directories if they don't exist
 for folder in [app.config['UPLOAD_FOLDER'], app.config['DRAFTS_FOLDER'], 
@@ -478,6 +479,7 @@ def home():
     
     # Get mailboxes for dropdown
     mailboxes = load_mailboxes()
+    users = load_users()
 
     # Current timestamp for draft ID
     current_time = time.time()
@@ -485,7 +487,7 @@ def home():
     
     return render_template('index.html', log_data=log_data, templates=templates, 
                           drafts=drafts, current_time=current_time, now_timestamp=now_timestamp,
-                          mailboxes=mailboxes)
+                          mailboxes=mailboxes, users=users)
 
 @app.route('/send-email', methods=['POST'])
 def send_email():
@@ -903,7 +905,78 @@ def test_mailbox():
     
     return jsonify({'success': success, 'message': message})
 
+@app.route('/users')
+def users():
+    return render_template('users.html')
+
+@app.route('/api/users', methods=['GET', 'POST'])
+def api_users():
+    if request.method == 'POST':
+        users = load_users()
+        # Handle CSV upload
+        if 'csv-file' in request.files:
+            file = request.files['csv-file']
+            if file.filename == '':
+                return jsonify({'success': False, 'error': 'No selected file'})
+            if file and file.filename.endswith('.csv'):
+                try:
+                    # Read the CSV file
+                    csv_data = file.stream.read().decode("utf-8")
+                    for line in csv_data.splitlines():
+                        # Assuming one email per line
+                        email = line.strip()
+                        if email and email not in users:
+                            users.append(email)
+                    save_users(users)
+                    return jsonify({'success': True})
+                except Exception as e:
+                    return jsonify({'success': False, 'error': str(e)})
+            return jsonify({'success': False, 'error': 'Invalid file type'})
+        # Handle manual addition
+        elif request.is_json:
+            data = request.get_json()
+            email = data.get('email')
+            if email and email not in users:
+                users.append(email)
+                save_users(users)
+                return jsonify({'success': True})
+            elif email in users:
+                return jsonify({'success': False, 'error': 'User already exists'})
+            else:
+                return jsonify({'success': False, 'error': 'Invalid email'})
+        else:
+            return jsonify({'success': False, 'error': 'Invalid request'})
+    else:
+        users = load_users()
+        return jsonify(users)
+
+@app.route('/api/users/<string:email>', methods=['DELETE'])
+def delete_user(email):
+    """Delete a user"""
+    users = load_users()
+    initial_len = len(users)
+    users = [u for u in users if u != email]
+    if len(users) < initial_len:
+        save_users(users)
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': 'User not found'}), 404
+
 # Helper functions
+def load_users():
+    """Load users from file"""
+    if os.path.exists(app.config['USERS_FILE']):
+        try:
+            with open(app.config['USERS_FILE'], 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return []
+    return []
+
+def save_users(users):
+    """Save users to file"""
+    with open(app.config['USERS_FILE'], 'w') as f:
+        json.dump(users, f, indent=4)
+
 def load_log_data():
     """Load log data from file"""
     if os.path.exists(app.config['LOG_FILE']):

@@ -3,3 +3,5 @@
 __pycache__/
 .encryption_key
 drafts/
+users.json
+*.csv

@@ -460,4 +460,15 @@ document.addEventListener('DOMContentLoaded', function() {
             mailFromSelect.setAttribute('required', 'true');
         }
     }
+
+    // User selection
+    const userSelect = document.getElementById('user_select');
+    if (userSelect) {
+        userSelect.addEventListener('change', function() {
+            const mailToInput = document.getElementById('mail_to');
+            if (this.value) {
+                mailToInput.value = this.value;
+            }
+        });
+    }
 });

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Import Users</h2>
+    <p>Import users from a CSV file. The CSV file should have one column with the email addresses.</p>
+    <form id="upload-form" enctype="multipart/form-data">
+        <div class="input-group mb-3">
+            <input type="file" class="form-control" id="csv-file" name="csv-file" accept=".csv">
+            <label class="input-group-text" for="csv-file"><i class="fas fa-upload me-2"></i>Upload</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Import</button>
+    </form>
+    <hr>
+    <h2>Add User Manually</h2>
+    <form id="add-user-form">
+        <div class="input-group mb-3">
+            <input type="email" class="form-control" id="email-input" placeholder="Enter email address" required>
+            <button class="btn btn-primary" type="submit">Add User</button>
+        </div>
+    </form>
+    <hr>
+    <h2>Current Users</h2>
+    <ul id="user-list" class="list-group">
+    </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/users.js') }}"></script>
+{% endblock %}
