@@ -53,7 +53,7 @@ def is_root():
 
 # Import and register domain checker routes AFTER app is created
 try:
-    from domain_checker import domain_checker, register_routes
+    from scripts.domain_checker import domain_checker, register_routes
     register_routes(app)
     print("Domain checker routes registered successfully!")
 except ImportError as e:
