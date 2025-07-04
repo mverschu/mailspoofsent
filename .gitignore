@@ -5,3 +5,4 @@ __pycache__/
 drafts/
 users.json
 *.csv
+/uploads/
