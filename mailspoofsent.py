@@ -1107,38 +1107,44 @@ def execute_campaign(campaign_id, campaign_data):
 
 def main():
     """Main function to handle both CLI and web server modes"""
-    # Check for --web flag
-    if '--web' in sys.argv:
-        
-        print("Starting the web server...")
-        print("You can access the web interface at: http://localhost:80")
-        print("Press Ctrl+C to stop the web server.")
-        socketio.run(app, debug=False, host='0.0.0.0', port=80)
-        return
-    # If no args provided, show usage
-    if len(sys.argv) == 1:
-        print("Usage: ./mailspoofsent.py [--bcc bcc_address] --mail-from mail_from --mail-envelope mail_envelope --mail-to mail_to --subject subject --body body [--htmlbody body.html] --spoof-domain domain [--web]")
-        return
+    import argparse
+    parser = argparse.ArgumentParser(description='Send spoofed emails or start a web server.')
     
+    # Web server arguments
+    parser.add_argument('--web', action='store_true', help='Start the MailSpoofSent Web UI')
+    parser.add_argument('-p', '--port', type=int, default=80, help='Port for the web server (default: 80)')
+
+    # Email sending arguments
+    email_group = parser.add_argument_group('Email Sending Arguments')
+    email_group.add_argument('--bcc', help='Specify a bcc address for the email')
+    email_group.add_argument('--mail-from', help='The mail address shown in mail client')
+    email_group.add_argument('--mail-to', help="The recipient's email address")
+    email_group.add_argument('--mail-envelope', help='The under control mail address to spoof e.g. SPF')
+    email_group.add_argument('--subject', help='The subject of the email')
+    email_group.add_argument('--body', help='The body of the email')
+    email_group.add_argument('--htmlbody', help='The HTML body of the email (provide file path)')
+    email_group.add_argument('--spoof-domain', help='The domain to spoof from under control of attacker')
+
+    args = parser.parse_args()
+
+    if args.web:
+        print(f"Starting the web server on port {args.port}...")
+        print(f"You can access the web interface at: http://0.0.0.0:{args.port}")
+        print("Press Ctrl+C to stop the web server.")
+        socketio.run(app, debug=False, host='0.0.0.0', port=args.port)
+        return
+
+    # If not starting web server, check for required email arguments
+    required_email_args = ['mail_from', 'mail_to', 'mail_envelope', 'subject', 'body', 'spoof_domain']
+    if not all(getattr(args, arg) for arg in required_email_args):
+        parser.print_usage()
+        print("\nError: Missing one or more required arguments for sending email: --mail-from, --mail-to, --mail-envelope, --subject, --body, --spoof-domain")
+        return 1
+
     # Check if running with sudo
     if not is_root():
-        print("DISCLAIMER: This script requires sudo rights to run.")
+        print("DISCLAIMER: This script requires sudo rights to run for sending emails.")
         return 1
-    
-    # Parse command line arguments
-    import argparse
-    parser = argparse.ArgumentParser(description='Send spoofed emails')
-    parser.add_argument('--bcc', help='Specify a bcc address for the email')
-    parser.add_argument('--mail-from', required=True, help='The mail address shown in mail client')
-    parser.add_argument('--mail-to', required=True, help="The recipient's email address")
-    parser.add_argument('--mail-envelope', required=True, help='The under control mail address to spoof e.g. SPF')
-    parser.add_argument('--subject', required=True, help='The subject of the email')
-    parser.add_argument('--body', required=True, help='The body of the email')
-    parser.add_argument('--htmlbody', help='The HTML body of the email (provide file path)')
-    parser.add_argument('--spoof-domain', required=True, help='The domain to spoof from under control of attacker')
-    parser.add_argument('--web', action='store_true', help='Start the MailSpoofSent Web UI')
-    
-    args = parser.parse_args()
     
     # Send the email
     success, message = send_spoofed_email(
